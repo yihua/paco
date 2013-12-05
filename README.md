@@ -1,4 +1,4 @@
-Tranalyzer
+PACO
 ==========
 
-Trace Analyzer for tcpdump traces
+Packet Analyzer with COntext
