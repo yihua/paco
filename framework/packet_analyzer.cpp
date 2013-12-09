@@ -10,7 +10,7 @@
 
 void dispatcher_handler(u_char *c, const struct pcap_pkthdr *header, const u_char *pkt_data) {
 	PacketAnalyzer* analyzer = (PacketAnalyzer *) c;
-	analyzer->runTrafficAbstract(analyzer->getEtherLen(), header, pkt_data);
+	analyzer->runTrafficAbstract(analyzer->getContext(), header, pkt_data);
 }
 
 PacketAnalyzer::PacketAnalyzer() {
@@ -48,8 +48,8 @@ void PacketAnalyzer::config(ConfigParam param) {
 	}
 }
 
-int PacketAnalyzer::getEtherLen() {
-	return ETHER_HDR_LEN;
+Context PacketAnalyzer::getContext(){
+    return traceCtx;
 }
 
 string PacketAnalyzer::getFolder(string s) {
@@ -82,23 +82,23 @@ void PacketAnalyzer::run() {
 		if (tmp_folder.compare(curr_folder) != 0) {
 			curr_folder = tmp_folder;
 			cout << "Folder Name: " << curr_folder << endl;
-			appNameMap.clear();
+			traceCtx.clearAppNameMap();
 
 			ifstream appNameFile(tmp_folder.c_str());
 			while (getline(appNameFile, tmp_s)) {
-				appNameMap.push_back(tmp_s);
+				traceCtx.addAppName(tmp_s);
 			}
 		}
 
 		// pcap link layer header length
 
 		if (pcap_datalink(trace_file) == DLT_LINUX_SLL) {
-			ETHER_HDR_LEN = 16;
+			traceCtx.setEtherLen(16);
 		} else {
-			ETHER_HDR_LEN = 14;
+			traceCtx.setEtherLen(14);
 		}
 
-		cout << "Pcap trace Ethernet header length: " << ETHER_HDR_LEN << endl;
+		cout << "Pcap trace Ethernet header length: " << traceCtx.getEtherLen() << endl;
 
 		/* read and dispatch packets until EOF is reached */
 		pcap_loop(trace_file, 0, dispatcher_handler, (u_char *) this);
@@ -107,10 +107,10 @@ void PacketAnalyzer::run() {
 	}
 }
 
-void PacketAnalyzer::runTrafficAbstract(int i, const struct pcap_pkthdr *header, const u_char *pkt_data) {
+void PacketAnalyzer::runTrafficAbstract(Context ctx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
 	vector<TrafficAbstract>::iterator it;
 
 	for (it = mTrafficAbstract.begin(); it != mTrafficAbstract.end(); it++) {
-		it->runMeasureTask(header, pkt_data);
+		it->runMeasureTask(ctx, header, pkt_data);
 	}
 }

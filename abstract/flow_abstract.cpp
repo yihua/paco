@@ -27,7 +27,7 @@ bool FlowAbstract::isClient(in_addr addr) {
     //    return ((addr.s_addr & 0xFF) == 10) ? true : false;
 }
 
-void FlowAbstract::runMeasureTask(int i, const struct pcap_pkthdr *header, const u_char *pkt_data) {
+void FlowAbstract::runMeasureTask(Context traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
 	if (is_first) {
 		this->ETHER_HDR_LEN = i;
 		is_first = false;

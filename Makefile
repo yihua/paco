@@ -11,6 +11,7 @@ SOURCES=\
 		main.cpp\
 		framework/measure_task.cpp\
 		framework/packet_analyzer.cpp\
+		framework/context.cpp\
 		common/param.cpp\
 		param/config_param.cpp\
 		abstract/tcp_flow.cpp\

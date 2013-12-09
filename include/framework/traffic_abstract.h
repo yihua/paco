@@ -12,6 +12,7 @@
 #include "common/stl.h"
 
 #include "framework/measure_task.h"
+#include "framework/context.h"
 
 class TrafficAbstract {
 private:
@@ -19,7 +20,7 @@ private:
 public:
 	TrafficAbstract();
 
-	void runMeasureTask(const struct pcap_pkthdr *header, const u_char *pkt_data);
+	void runMeasureTask(Context traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
 };
 
 #endif /* TRAFFIC_ABSTRACT_H_ */

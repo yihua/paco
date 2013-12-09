@@ -12,6 +12,7 @@
 #include "common/stl.h"
 #include "framework/measure_task.h"
 #include "framework/traffic_abstract.h"
+#include "framework/context.h"
 #include "param/config_param.h"
 #include "framework/pcap.h"
 #include "common/basic.h"
@@ -22,9 +23,8 @@ class PacketAnalyzer {
 private:
 	vector<TrafficAbstract> mTrafficAbstract;
 	vector<string> traceList;
-	vector<string> appNameMap;
+	Context traceCtx;
 
-	int ETHER_HDR_LEN;
 	string getFolder(string s);
 
 public:
@@ -32,9 +32,9 @@ public:
 
 	void checkSystem();
 	void config(ConfigParam param);
-	int getEtherLen();
+	Context getContext();
 	void run();
-	void runTrafficAbstract(int i, const struct pcap_pkthdr *header, const u_char *pkt_data);
+	void runTrafficAbstract(Context traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
 };
 
 
