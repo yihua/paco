@@ -11,7 +11,7 @@
 
 #include <map>
 
-#include "tcp_flow.h"
+#include "abstract/tcp_flow.h"
 
 
 class user {
@@ -19,9 +19,9 @@ public:
     double start_time;
     double last_packet_time;
     map<u_short, TCPFlow*> tcp_flows;
-    
+
     user();
-    
+
 };
 
 #endif /* defined(__PacketTraceExplorer__user__) */

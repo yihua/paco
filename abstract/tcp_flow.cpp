@@ -484,11 +484,11 @@ void TCPFlow::print(u_short processed_flags) {
 
 
 char* TCPFlow::ConvertIPToString(unsigned int ip) {
-	        static char ipstr[17];
-	        sprintf(ipstr, "%d.%d.%d.%d",
-	            ip & 0xFF,
-	            (ip >> 8) & 0xFF,
-	            (ip >> 16) & 0xFF,
-	            ip >> 24);
-	        return ipstr;
-	}
+        static char ipstr[17];
+        sprintf(ipstr, "%d.%d.%d.%d",
+            ip & 0xFF,
+            (ip >> 8) & 0xFF,
+            (ip >> 16) & 0xFF,
+            ip >> 24);
+        return ipstr;
+}
