@@ -1,6 +1,9 @@
 CC=g++
 CFLAGS=-I include/
-LIBS=lib/libpcap.so.1.3.0
+LDFLAGS=-lpcap
+LOCALLIB=/usr/local/lib/
+LIBS=lib/
+LIBFILE=libpcap.so.1.3.0
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=paco
 
@@ -20,8 +23,14 @@ SOURCES=\
 
 all: $(OBJECTS) $(EXECUTABLE)
 
-$(EXECUTABLE):  
-	$(CC) $(OBJECTS) $(CFLAGS) $(LIBS)  -o $@ 
+installlib: 
+	cp $(LIBS)$(LIBFILE) $(LOCALLIB)
+	ln -sf $(LOCALLIB)$(LIBFILE) $(LOCALLIB)libpcap.so.1
+	ln -sf $(LOCALLIB)$(LIBFILE) $(LOCALLIB)libpcap.so
+	export LD_LIBRARY_PATH=$(LOCALLIB):$LD_LIBRARY_PATH
+
+$(EXECUTABLE):  installlib
+	$(CC) $(OBJECTS) $(CFLAGS) -L$(LOCALLIB) -o $@ $(LDFLAGS)
 
 .cpp.o:
 	$(CC) -c $< $(CFLAGS) -o $@  
