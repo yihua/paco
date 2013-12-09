@@ -11,7 +11,7 @@
 #include "common/param.h"
 
 #define CONFIG_PARAM_TRACE "trace_type"
-#define CONFIG_PARAM_TRACE_DEV "0"
+#define CONFIG_PARAM_TRACE_DEV "0" // user study
 #define CONFIG_PARAM_TRACE_SRV "1"
 #define CONFIG_PARAM_TRACE_DEV_SRV "2"
 

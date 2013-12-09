@@ -11,5 +11,9 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <string.h>
+
+#include <ext/hash_set>
+#include <ext/hash_map>
 
 using namespace std;

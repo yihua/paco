@@ -14,4 +14,7 @@
 
 typedef unsigned long long uint64;
 
+u_short bswap16(u_short);
+u_int bswap32(u_int);
+
 #endif /* _PACO_BASIC_H */
