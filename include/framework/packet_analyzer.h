@@ -21,9 +21,10 @@
 
 class PacketAnalyzer {
 private:
-	vector<TrafficAbstract> mTrafficAbstract;
-	vector<string> traceList;
-	Context traceCtx;
+	vector<int*> mTrafficAbstract;
+	vector<string> mTraceList;
+	Context mTraceCtx;
+	ConfigParam mConfigParam;
 
 	string getFolder(string s);
 
@@ -31,8 +32,11 @@ public:
 	PacketAnalyzer();
 
 	void checkSystem();
-	void config(ConfigParam param);
+	void config();
+	void clearConfig();
+	void setConfigParam(ConfigParam param);
 	Context getContext();
+	ConfigParam getConfigParam();
 	void run();
 	void runTrafficAbstract(Context traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
 };

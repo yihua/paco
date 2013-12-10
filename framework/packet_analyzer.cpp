@@ -7,6 +7,7 @@
  */
 
 #include "framework/packet_analyzer.h"
+#include "abstract/flow_abstract.h"
 
 void dispatcher_handler(u_char *c, const struct pcap_pkthdr *header, const u_char *pkt_data) {
 	PacketAnalyzer* analyzer = (PacketAnalyzer *) c;
@@ -40,16 +41,37 @@ void PacketAnalyzer::checkSystem() {
 	cout << "Length of uint64 should be 8: " << sizeof(uint64) << endl;
 }
 
-void PacketAnalyzer::config(ConfigParam param) {
-	ifstream trace_list(param.getTraceList().c_str());
+void PacketAnalyzer::config() {
+	ifstream trace_list(mConfigParam.getTraceList().c_str());
 	string s;
 	while (getline(trace_list, s)) {
-		traceList.push_back(s);
+		mTraceList.push_back(s);
+	}
+
+	//measurement type
+	if (mConfigParam.getMeasumentTask().compare(CONFIG_PARAM_MEASUREMENT_TCPFLOW) == 0){
+	    FlowAbstract* fa=new FlowAbstract();
+	    fa->configTraceType(mConfigParam.getContextType());
+	    mTrafficAbstract.push_back((int*)fa);
 	}
 }
 
+void PacketAnalyzer::clearConfig(){
+    mTraceList.clear();
+    mTrafficAbstract.clear();
+}
+
+void PacketAnalyzer::setConfigParam(ConfigParam param){
+    mConfigParam=param;
+    config();
+}
+
 Context PacketAnalyzer::getContext(){
-    return traceCtx;
+    return mTraceCtx;
+}
+
+ConfigParam PacketAnalyzer::getConfigParam(){
+    return mConfigParam;
 }
 
 string PacketAnalyzer::getFolder(string s) {
@@ -65,7 +87,7 @@ void PacketAnalyzer::run() {
 
 	string curr_folder, tmp_folder, tmp_s;
 	int trace_count = 0;
-	for (it = traceList.begin(); it != traceList.end(); it++) {
+	for (it = mTraceList.begin(); it != mTraceList.end(); it++) {
 		if (trace_count % 1000 == 0) {
 			cout << trace_count << " files processed." << endl;
 		}
@@ -76,29 +98,31 @@ void PacketAnalyzer::run() {
 			//continue;
 		}
 
+
+
 		// read application map
 		tmp_folder = getFolder(*it);
 		tmp_folder += "appname";
 		if (tmp_folder.compare(curr_folder) != 0) {
 			curr_folder = tmp_folder;
 			cout << "Folder Name: " << curr_folder << endl;
-			traceCtx.clearAppNameMap();
+			mTraceCtx.clearAppNameMap();
 
 			ifstream appNameFile(tmp_folder.c_str());
 			while (getline(appNameFile, tmp_s)) {
-				traceCtx.addAppName(tmp_s);
+				mTraceCtx.addAppName(tmp_s);
 			}
 		}
 
 		// pcap link layer header length
 
 		if (pcap_datalink(trace_file) == DLT_LINUX_SLL) {
-			traceCtx.setEtherLen(16);
+			mTraceCtx.setEtherLen(16);
 		} else {
-			traceCtx.setEtherLen(14);
+			mTraceCtx.setEtherLen(14);
 		}
 
-		cout << "Pcap trace Ethernet header length: " << traceCtx.getEtherLen() << endl;
+		cout << "Pcap trace Ethernet header length: " << mTraceCtx.getEtherLen() << endl;
 
 		/* read and dispatch packets until EOF is reached */
 		pcap_loop(trace_file, 0, dispatcher_handler, (u_char *) this);
@@ -108,9 +132,8 @@ void PacketAnalyzer::run() {
 }
 
 void PacketAnalyzer::runTrafficAbstract(Context ctx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
-	vector<TrafficAbstract>::iterator it;
-
+	vector<int*>::iterator it;
 	for (it = mTrafficAbstract.begin(); it != mTrafficAbstract.end(); it++) {
-		it->runMeasureTask(ctx, header, pkt_data);
+		((TrafficAbstract*)(*it))->runMeasureTask(ctx, header, pkt_data);
 	}
 }

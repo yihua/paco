@@ -10,10 +10,12 @@
 FlowAbstract::FlowAbstract() {
 	is_first = true;
 	TIME_BASE = 1350014400.000000; //Thu Oct 12 2012 00:00:00
-	traceType = 0;
+	traceType = "0";
+	flow=NULL;
+	userp=NULL;
 }
 
-void FlowAbstract::configTraceType(int type) {
+void FlowAbstract::configTraceType(string type) {
 	traceType = type;
 }
 
@@ -29,7 +31,7 @@ bool FlowAbstract::isClient(in_addr addr) {
 
 void FlowAbstract::runMeasureTask(Context traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
 	if (is_first) {
-		this->ETHER_HDR_LEN = i;
+		this->ETHER_HDR_LEN = traceCtx.getEtherLen();
 		is_first = false;
 		start_time_sec = header->ts.tv_sec;
 		last_time_sec = start_time_sec;
@@ -110,7 +112,7 @@ void FlowAbstract::runMeasureTask(Context traceCtx, const struct pcap_pkthdr *he
 					}
 				}
 
-				if (traceType == -1) {
+				if (traceType.compare("-1")==0) {
 					//TCP client side throughput sampling
 					/*if (b1 && !b2 && bw_tcp == NULL && (ptcp->th_flags & TH_SYN) != 0) {
 						bw_tcp = new client_bw(ts, 1.0);
@@ -151,7 +153,7 @@ void FlowAbstract::runMeasureTask(Context traceCtx, const struct pcap_pkthdr *he
 						}
 					}*/
 				/* end traceType == -1 */
-				} else if (traceType == CONFIG_PARAM_TRACE_DEV) {
+				} else if (traceType.compare(CONFIG_PARAM_TRACE_DEV)==0) {
 					if (b1 && !b2) { // uplink
 						port_clt = bswap16(ptcp->source);
 						port_svr = bswap16(ptcp->dest);
@@ -319,7 +321,7 @@ void FlowAbstract::runMeasureTask(Context traceCtx, const struct pcap_pkthdr *he
 						flow->start_time = ts;
 						flow->end_time = ts;
 
-						if (traceType == CONFIG_PARAM_TRACE_SRV) {
+						if (traceType.compare(CONFIG_PARAM_TRACE_SRV)==0) {
 							if (client_flows.size() >= 100000 && ts - last_prune_time >= FLOW_MAX_IDLE_TIME / 2) {
 							//if (ts - last_prune_time >= FLOW_MAX_IDLE_TIME) {
 								cout << "Flowsize " << ts << " " << client_flows.size() << endl;
@@ -560,7 +562,7 @@ void FlowAbstract::runMeasureTask(Context traceCtx, const struct pcap_pkthdr *he
 				cip[ip_clt]++;
 				sip[ip_svr]++;*/
 
-				if (traceType == -1) {
+				if (traceType.compare("-1")==0) {
 					//UDP client side throughput sampling
 					if (!b1 && b2) { //downlink
 						//sample throughput here, using differnt time window
@@ -652,8 +654,8 @@ void FlowAbstract::runMeasureTask(Context traceCtx, const struct pcap_pkthdr *he
 	//if (packet_count > 1000)
 	//    exit(0);
 
-	vector<MeasureTask>::iterator it;
+/*	vector<MeasureTask>::iterator it;
 	for (it = mMeasureTask.begin(); it != mMeasureTask.end(); it++) {
 		it->procPacket(this, header, pkt_data);
-	}
+	}*/
 }

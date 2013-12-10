@@ -21,6 +21,9 @@
 
 #define CONFIG_PARAM_TRACE_LIST "trace_list"
 
+#define CONFIG_PARAM_MEASUREMENT "measurement_task"
+#define CONFIG_PARAM_MEASUREMENT_TCPFLOW "0"
+
 class ConfigParam: private Param {
 private:
 public:
@@ -28,12 +31,14 @@ public:
 	void configContextType(string s);
 	void configTraceList(string s);
 	void configTraceType(string s);
+	void configMeasumentTask(string s);
 
 	void copyConfigParam(Param param);
 
 	string getContextType();
 	string getTraceList();
 	string getTraceType();
+	string getMeasumentTask();
 };
 
 #endif /* CONFIG_PARAM_H_ */

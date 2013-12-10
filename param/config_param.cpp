@@ -26,6 +26,10 @@ void ConfigParam::configTraceType(string s) {
 	put(CONFIG_PARAM_TRACE, s);
 }
 
+void ConfigParam::configMeasumentTask(string s){
+	put(CONFIG_PARAM_MEASUREMENT, s);
+}
+
 string ConfigParam::getContextType() {
 	return get(CONFIG_PARAM_CONTEXT);
 }
@@ -36,4 +40,8 @@ string ConfigParam::getTraceList() {
 
 string ConfigParam::getTraceType() {
 	return get(CONFIG_PARAM_TRACE);
+}
+
+string ConfigParam::getMeasumentTask() {
+	return get(CONFIG_PARAM_MEASUREMENT);
 }

@@ -9,6 +9,7 @@
 #define FLOW_ABSTRACT_H_
 
 #include "framework/traffic_abstract.h"
+#include "framework/pcap.h"
 #include "proto/tcp_ip.h"
 #include "abstract/tcp_flow.h"
 #include "common/basic.h"
@@ -17,7 +18,6 @@
 #include "param/config_param.h"
 
 class FlowAbstract: public TrafficAbstract{
-	bool is_first;
 	double TIME_BASE;
 
 	uint64 packet_count;
@@ -77,8 +77,8 @@ class FlowAbstract: public TrafficAbstract{
 	uint64 flow_index;
 	string big_flow_index;
 	bool is_target_flow;
-	TCPFlow *flow = NULL;
-	user *userp = NULL;
+	TCPFlow *flow;
+	user *userp;
 	//client_bw *bw_udp = NULL;
 	//client_bw *bw_tcp = NULL;
 	char *payload;
@@ -88,14 +88,14 @@ class FlowAbstract: public TrafficAbstract{
 	u_int jump;
 
 	bool isClient(in_addr addr);
-	int traceType;
+	string traceType;
 
 	int ETHER_HDR_LEN;
 public:
 	FlowAbstract();
 
-	void configTraceType(int type);
-	void runMeasureTask(int i, const struct pcap_pkthdr *header, const u_char *pkt_data);
+	void configTraceType(string type);
+	void runMeasureTask(Context traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
 };
 
 #endif /* FLOW_ABSTRACT_H_ */

@@ -8,13 +8,13 @@
 #include "framework/traffic_abstract.h"
 #include "framework/context.h"
 
-TrafficAbstract::TrafficAbstract() {
+/*TrafficAbstract::TrafficAbstract() {
 
 }
 
 void TrafficAbstract::runMeasureTask(Context traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
-	vector<MeasureTask>::iterator it;
+	vector<int *>::iterator it;
 	for (it = mMeasureTask.begin(); it != mMeasureTask.end(); it++) {
-		it->procPacket(this, header, pkt_data);
+		((MeasureTask *)(*it))->procPacket(this, header, pkt_data);
 	}
-}
+}*/

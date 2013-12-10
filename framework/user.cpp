@@ -6,7 +6,7 @@
 //  Copyright (c) 2013 Junxian Huang. All rights reserved.
 //
 
-#include "user.h"
+#include "framework/user.h"
 
 user::user() {
     start_time = 0;
