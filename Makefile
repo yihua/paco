@@ -16,7 +16,8 @@ SOURCES=\
 		abstract/tcp_flow.cpp\
 		abstract/flow_abstract.cpp\
 		framework/traffic_abstract.cpp\
-		task/rtt_task.cpp
+		task/rtt_task.cpp\
+		feature_extraction.cpp
 		
 
 all: $(SOURCES) $(EXECUTABLE)
