@@ -70,6 +70,7 @@ void FlowAbstract::runMeasureTask(Context traceCtx, const struct pcap_pkthdr *he
 
 
 		userp = &users[ip_clt];
+	//userp = &users["abc"];
 		if (userp->start_time == 0) {
 			//init
 			userp->start_time = ts;

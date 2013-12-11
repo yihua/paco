@@ -15,7 +15,7 @@ int main() {
 	analyzer.checkSystem();
 	analyzer.run();
 */
-    featureExtraction("/home/alfred/courses/545/data/notificationTime");
+    featureExtraction("/home/alfred/courses/545/data/notificationTime",2,1,2,0);
 
 	return 0;
 }

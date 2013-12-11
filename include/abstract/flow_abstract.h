@@ -67,6 +67,7 @@ class FlowAbstract: public TrafficAbstract{
 	map<string, pair<double, double> >::iterator big_flow_it_tmp;
 
 	map<u_int, user> users;
+//    map<string, user> users;
 	map<u_int, user>::iterator user_it;
 	map<u_short, TCPFlow*>::iterator uval_it;
 

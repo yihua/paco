@@ -18,6 +18,6 @@
 #include <time.h>
 #include <deque>
 
-void featureExtraction(char* fefilename);
+void featureExtraction(char* fefilename, int tnum, int pweek, int pday, int mode);
 
 #endif /* _FEATURE_EXTRACTION_H */
