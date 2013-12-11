@@ -15,7 +15,7 @@ int main() {
 	analyzer.checkSystem();
 	analyzer.run();
 */
-    featureExtraction("/home/alfred/courses/545/data/notificationTime",2,1,2,0);
+    featureExtraction("/home/alfred/courses/545/PACO/tslog__353091053663193__com.sina.weibo.servant",10,0,0,0);
 
 	return 0;
 }

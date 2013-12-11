@@ -101,6 +101,21 @@ bool isFullVector(vector<double>* &res){
     return true;
 }
 
+int getNextSubString(char* fullstring, int &i, char* substring, char endChar=' '){
+//substring should not be null
+  int strleni=strlen(fullstring);
+  while (i<strleni && (fullstring[i]==' ' || fullstring[i]=='\t')) i++;
+  if (!(i<strleni)){
+      return -1;
+  }
+
+  int j=0;
+  while (i<strleni && fullstring[i]!=endChar)
+    substring[j++]=fullstring[i++];
+  substring[j]='\0';
+  return 0;
+}
+
 void featureExtraction(char* fefilename, int tnum, int pweek, int pday, int mode){
 //fefilename: raw data file name
 //tnum: number of timestamps to be counted in feature
@@ -123,13 +138,27 @@ void featureExtraction(char* fefilename, int tnum, int pweek, int pday, int mode
     printf("%d\n",fullVectorSize());
 
     res=new vector<double>();
-
+    res->clear();
     double lastOne=-1;
+    foutFE<<fullVectorSize()+1<<endl;
+
     while (finFE.getline(strFE,3000)){
+        char strFEsub[3000];
+        int i=0;
+        getNextSubString(strFE, i, strFEsub);
         double timestamp;
-        res->clear();
         sscanf(strFE,"%lf",&timestamp);
         printf("%lf\n",timestamp);
+
+        if (isFullVector(res)){
+           if (lastOne!=-1)
+              res->push_back(timestamp-lastOne);
+           for (int i=0;i<res->size();i++)
+             foutFE<<res->at(i)<<" ";
+            foutFE<<endl;
+       }
+        res->clear();
+
         tsQueue.push_back(timestamp);
         getFeatureVector(tsQueue.size()-1,res);
 
@@ -139,13 +168,7 @@ void featureExtraction(char* fefilename, int tnum, int pweek, int pday, int mode
         printf("%d ",tsPointers[i][j]);
      cout<<endl;
 */
-       if (isFullVector(res)){
-           if (lastOne!=-1)
-              res->push_back(timestamp-lastOne);
-           for (int i=0;i<res->size();i++)
-             foutFE<<res->at(i)<<" ";
-            foutFE<<endl;
-       }
+
        lastOne=timestamp;
        rycQueue();
 
