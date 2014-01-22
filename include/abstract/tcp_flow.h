@@ -15,6 +15,7 @@
 
 class TCPFlow {
 public:
+	uint64 flowIndex;
     u_int svr_ip;
     u_int clt_ip;
     u_short svr_port;
@@ -41,6 +42,8 @@ public:
     double idle_time;
     double syn_rtt, syn_ack_rtt;
     double idle_time_before_syn;
+
+    double last_data_ts;
 
     short si; //circular seq index 0 - 19, point to the current last element
     short sx; // point to the current first index
@@ -77,6 +80,7 @@ public:
     string host;
     u_int total_content_length;
 
+    string userID;
     //called during init or any abnormal happens
     void reset_seq();
     void reset_ack();
@@ -100,6 +104,7 @@ public:
 	TCPFlow();
 
 	char * ConvertIPToString(unsigned int ip);
+	void setUserID(string s);
 };
 
 #endif /* _PACO_TCP_FLOW_H */

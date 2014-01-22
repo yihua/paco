@@ -66,6 +66,9 @@ TCPFlow::TCPFlow() {
     reset_seq(); //contains reset_ack
 }
 
+//TCPFlow::~TCPFlow() {
+//	delete userID;
+//}
 
 //called during init or any abnormal happens
 void TCPFlow::reset_seq() {
@@ -444,6 +447,8 @@ void TCPFlow::print(u_short processed_flags) {
 
     printf("%s ", ConvertIPToString(clt_ip)); // 1
     printf("%s ", ConvertIPToString(svr_ip)); //2
+
+
     printf("%d %d %.4lf %.4lf %.4lf %.4lf %d %d %d %lld %lld %.4lf %lld %.4lf %.4lf %lld %lld %.4lf %d %.4lf %d %lld %.4lf %.4lf %d %d %d %.4lf ",
            clt_port, //3
            svr_port, //4
@@ -491,4 +496,8 @@ char* TCPFlow::ConvertIPToString(unsigned int ip) {
             (ip >> 16) & 0xFF,
             ip >> 24);
         return ipstr;
+}
+
+void TCPFlow::setUserID(string s) {
+	this->userID = s;
 }

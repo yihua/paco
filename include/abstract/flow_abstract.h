@@ -15,9 +15,11 @@
 #include "common/basic.h"
 #include "common/stl.h"
 #include "framework/user.h"
+#include "framework/context.h"
 #include "param/config_param.h"
 
 class FlowAbstract: public TrafficAbstract{
+	int BURST_THRESHOLD;
 	double TIME_BASE;
 
 	uint64 packet_count;
@@ -66,8 +68,8 @@ class FlowAbstract: public TrafficAbstract{
 	map<string, pair<double, double> > big_flows;
 	map<string, pair<double, double> >::iterator big_flow_it_tmp;
 
-	map<u_int, user> users;
-	map<u_int, user>::iterator user_it;
+	map<string, user> users;
+	map<string, user>::iterator user_it;
 	map<u_short, TCPFlow*>::iterator uval_it;
 
 	map<u_int, u_int> cip;
@@ -95,7 +97,8 @@ public:
 	FlowAbstract();
 
 	void configTraceType(string type);
-	void runMeasureTask(Context traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
+	void runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
+	void runCleanUp();
 };
 
 #endif /* FLOW_ABSTRACT_H_ */

@@ -4,7 +4,7 @@
 using namespace std;
 
 int main() {
-	string traceList("/home/alfred/courses/545/data/traceList");
+	string traceList("/home/yihua/workspace/PACO/traceList");
 	ConfigParam param;
 	param.configTraceList(traceList);
 	param.configContextType(CONFIG_PARAM_TRACE_DEV);

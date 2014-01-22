@@ -10,21 +10,38 @@
 #define _PACO_CONTEXT_H
 
 #include "common/stl.h"
+#include "common/io.h"
 
 class Context {
 private:
 	vector<string> appNameMap;
+	string userID;
 	int ETHER_HDR_LEN;
+	ifstream screen_context, proc_context;
+	string screen_line, proc_line;
+	double screen_time, proc_time;
+	bool screenOn;
+	set<string> foregroundApp;
 
+	double getTimestamp(string s);
+	string getAppName(string s);
+	bool isImportanceFg(string s);
+	bool isProcessLine(string s);
+	bool parseScreenOn(string s);
 public:
     Context();
     void setEtherLen(int etherlen);
+    void setUserID(string s);
     int getEtherLen();
     vector<string> getAppNameMap();
     void addAppName(string appname);
     void clearAppNameMap();
     string getAppNameByIndex(int index);
-
+    string getUserID();
+    void updateContext(double ts);
+    void updateFile(string s);
+    bool isScreenOn();
+    bool isForeground(string appName);
 };
 
 #endif /* _PACO_CONTEXT_H */

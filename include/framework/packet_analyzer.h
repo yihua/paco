@@ -27,6 +27,7 @@ private:
 	ConfigParam mConfigParam;
 
 	string getFolder(string s);
+	string getUserID(string s);
 
 public:
 	PacketAnalyzer();
@@ -35,10 +36,10 @@ public:
 	void config();
 	void clearConfig();
 	void setConfigParam(ConfigParam param);
-	Context getContext();
+	Context& getContext();
 	ConfigParam getConfigParam();
 	void run();
-	void runTrafficAbstract(Context traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
+	void runTrafficAbstract(Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
 };
 
 

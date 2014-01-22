@@ -66,7 +66,7 @@ void PacketAnalyzer::setConfigParam(ConfigParam param){
     config();
 }
 
-Context PacketAnalyzer::getContext(){
+Context& PacketAnalyzer::getContext(){
     return mTraceCtx;
 }
 
@@ -77,6 +77,12 @@ ConfigParam PacketAnalyzer::getConfigParam(){
 string PacketAnalyzer::getFolder(string s) {
 	int pos = s.rfind("/");
 	return s.substr(0, pos+1);
+}
+
+string PacketAnalyzer::getUserID(string s) {
+	int pos1 = s.rfind("/");
+	int pos2 = s.rfind("-");
+	return s.substr(pos2 + 1, pos1-pos2-1);
 }
 
 void PacketAnalyzer::run() {
@@ -95,12 +101,10 @@ void PacketAnalyzer::run() {
 		// open pcap file successfully?
 		if ((trace_file = pcap_open_offline(it->c_str(), errbuf)) == NULL) {
 			cout << " Unable to open the file: " << *it << endl;
-			//continue;
+			continue;
 		}
 
-
-
-		// read application map
+		// read application map, screen status and process stat
 		tmp_folder = getFolder(*it);
 		tmp_folder += "appname";
 		if (tmp_folder.compare(curr_folder) != 0) {
@@ -112,7 +116,15 @@ void PacketAnalyzer::run() {
 			while (getline(appNameFile, tmp_s)) {
 				mTraceCtx.addAppName(tmp_s);
 			}
+
+			mTraceCtx.updateFile(getFolder(*it));
 		}
+
+
+
+		// get user ID
+		mTraceCtx.setUserID(getUserID(*it));
+
 
 		// pcap link layer header length
 
@@ -122,16 +134,23 @@ void PacketAnalyzer::run() {
 			mTraceCtx.setEtherLen(14);
 		}
 
-		cout << "Pcap trace Ethernet header length: " << mTraceCtx.getEtherLen() << endl;
+		//cout << "Pcap trace Ethernet header length: " << mTraceCtx.getEtherLen() << endl;
 
 		/* read and dispatch packets until EOF is reached */
 		pcap_loop(trace_file, 0, dispatcher_handler, (u_char *) this);
 		pcap_close(trace_file);
 		trace_count++;
 	}
+
+	// end
+
+	vector<int*>::iterator end_it;
+	for (end_it = mTrafficAbstract.begin(); end_it != mTrafficAbstract.end(); end_it++) {
+		((TrafficAbstract*)(*end_it))->runCleanUp();
+	}
 }
 
-void PacketAnalyzer::runTrafficAbstract(Context ctx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
+void PacketAnalyzer::runTrafficAbstract(Context& ctx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
 	vector<int*>::iterator it;
 	for (it = mTrafficAbstract.begin(); it != mTrafficAbstract.end(); it++) {
 		((TrafficAbstract*)(*it))->runMeasureTask(ctx, header, pkt_data);

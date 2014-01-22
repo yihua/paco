@@ -12,6 +12,7 @@
 #include <map>
 #include <vector>
 #include <string.h>
+#include <set>
 
 #include <ext/hash_set>
 #include <ext/hash_map>

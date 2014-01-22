@@ -7,11 +7,12 @@
 
 #ifndef _PACO_BASIC_H
 #define _PACO_BASIC_H
-
+#define __STDC_FORMAT_MACROS
 
 #include <cstdlib>
 #include <ctime>
 #include <stdint.h>
+#include <inttypes.h>
 
 typedef unsigned long long uint64;
 #ifdef __FreeBSD__ || __NetBSD__ || __OpenBSD__

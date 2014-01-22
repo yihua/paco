@@ -16,9 +16,12 @@
 
 class user {
 public:
+	string userID;
     double start_time;
     double last_packet_time;
-    map<u_short, TCPFlow*> tcp_flows;
+    map<uint64, TCPFlow*> tcp_flows;
+    map<string, string> appTimeLog;
+    map<string, double> appTime;
 
     user();
 
