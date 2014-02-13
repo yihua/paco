@@ -16,9 +16,10 @@ SOURCES=\
 		abstract/tcp_flow.cpp\
 		abstract/flow_abstract.cpp\
 		framework/traffic_abstract.cpp\
-		task/rtt_task.cpp
+		task/rtt_task.cpp\
+		proto/http.cpp
 		
-
+Release: $(SOURCES) $(EXECUTABLE)
 all: $(SOURCES) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)

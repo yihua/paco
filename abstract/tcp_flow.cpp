@@ -265,11 +265,11 @@ void TCPFlow::update_ack_x(u_int ack, u_short payload_len, double _actual_ts) {
         ax = get_ai_next(ai);
     }
 
-    /*//ACK RTT analysis
+    //ACK RTT analysis
     short s1 = find_seq_by_ack(ack_down[ai], sx, si);
     if (s1 != -1 && payload_len == 0) {
         cout << "AR " << " " << ack_ts[ai] - seq_ts[s1] << " " << bytes_in_fly << endl;
-    }//*/
+    }//
 
     //update bytes in fly after analysis
     if (bytes_in_fly > 0) {

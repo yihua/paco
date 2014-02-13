@@ -11,12 +11,21 @@
 #include "framework/traffic_abstract.h"
 #include "framework/pcap.h"
 #include "proto/tcp_ip.h"
+#include "proto/http.h"
 #include "abstract/tcp_flow.h"
 #include "common/basic.h"
 #include "common/stl.h"
 #include "framework/user.h"
 #include "framework/context.h"
 #include "param/config_param.h"
+
+//Usage: StringToNumber<Type> (String);
+template <typename T>
+T StringToNumber (const string &Text) {
+    istringstream ss(Text);
+    T result;
+    return ss >> result ? result : 0;
+}
 
 class FlowAbstract: public TrafficAbstract{
 	int BURST_THRESHOLD;
@@ -36,9 +45,9 @@ class FlowAbstract: public TrafficAbstract{
 	uint64 ignore_count1;
 	uint64 ignore_count2;
 	uint64 flow_count;
-	ip *pip;
-	tcphdr *ptcp;
-	udphdr *pudp;
+	ip *ip_hdr;
+	tcphdr *tcp_hdr;
+	udphdr *udp_hdr;
 	bool b1, b2;
 	bool is_first;
 	uint64 start_time_sec;
@@ -95,6 +104,11 @@ class FlowAbstract: public TrafficAbstract{
 	int ETHER_HDR_LEN;
 public:
 	FlowAbstract();
+
+	void bswapIP(struct ip* ip);
+	void bswapTCP(struct tcphdr* tcphdr);
+	void bswapUDP(struct udphdr* udphdr);
+	//void bswapDNS(struct DNS_HEADER* dnshdr);
 
 	void configTraceType(string type);
 	void runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);

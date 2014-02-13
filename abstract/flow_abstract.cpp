@@ -23,15 +23,43 @@ void FlowAbstract::configTraceType(string type) {
 
 bool FlowAbstract::isClient(in_addr addr) {
         //for Yihua's trace, server trace: client is 198.*; client trace: client is 10.*; and 32.* for 3G trace
-        return (((addr.s_addr & 0xFF) == 192 && (addr.s_addr & 0xFF00) >> 8 == 168) ||
-        		((addr.s_addr & 0xFF) == 67 && (addr.s_addr & 0xFF00) >> 8 == 194) ||
-        		((addr.s_addr & 0xFF) == 35 && (addr.s_addr & 0xFF00) >> 8 == 0) ||
-                (addr.s_addr & 0xFF) == 10) ? true : false;
+        return (((addr.s_addr & 0xFF000000) >> 24 == 192 && (addr.s_addr & 0xFF0000) >> 16 == 168) ||
+        		((addr.s_addr & 0xFF000000) >> 24 == 67 && (addr.s_addr & 0xFF0000) >> 16 == 194) ||
+        		((addr.s_addr & 0xFF000000) >> 24 == 35 && (addr.s_addr & 0xFF0000) >> 16 == 0) ||
+                (addr.s_addr & 0xFF000000) >> 24 == 10) ? true : false;
 
     //    return ((addr.s_addr & 0xFF) == 10) ? true : false;
 }
 
+void FlowAbstract::bswapIP(struct ip* ip) {
+	ip->ip_len=bswap16(ip->ip_len);
+	ip->ip_id=bswap16(ip->ip_id);
+	ip->ip_off=bswap16(ip->ip_off);
+	ip->ip_sum=bswap16(ip->ip_sum);
+	ip->ip_src.s_addr=bswap32(ip->ip_src.s_addr);
+	ip->ip_dst.s_addr=bswap32(ip->ip_dst.s_addr);
+}
+void FlowAbstract::bswapTCP(struct tcphdr* tcphdr) {
+	tcphdr->source=bswap16(tcphdr->source);
+	tcphdr->dest=bswap16(tcphdr->dest);
+	tcphdr->window=bswap16(tcphdr->window);
+	tcphdr->check=bswap16(tcphdr->check);
+	tcphdr->urg_ptr=bswap16(tcphdr->urg_ptr);
+	tcphdr->seq=bswap32(tcphdr->seq);
+	tcphdr->ack_seq=bswap32(tcphdr->ack_seq);
+}
+void FlowAbstract::bswapUDP(struct udphdr* udphdr) {
+	udphdr->source=bswap16(udphdr->source);
+	udphdr->dest=bswap16(udphdr->dest);
+	udphdr->len=bswap16(udphdr->len);
+	udphdr->check=bswap16(udphdr->check);
+}
+
 void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
+	/*
+	 * first packet ever. set the base time.
+	 * maintain the time of the last packet.
+	 */
 	if (is_first) {
 		this->ETHER_HDR_LEN = traceCtx.getEtherLen();
 		is_first = false;
@@ -49,13 +77,24 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 
 	ts = ((double)(header->ts.tv_sec) + (double)header->ts.tv_usec / (double)USEC_PER_SEC);// - TIME_BASE;
 
+	/*
+	 * update device context information
+	 */
 	traceCtx.updateContext(ts);
 
+	/*
+	 * Layer 3 (Network Layer) process
+	 */
 	if (*((u_short *)(pkt_data + ETHER_HDR_LEN - 2)) == ETHERTYPE_IP) {
-		//all IP
-		pip = (ip *)(pkt_data + ETHER_HDR_LEN);
-		b1 = isClient(pip->ip_src);
-		b2 = isClient(pip->ip_dst);
+		/*
+		 * IP packet processing. Extract IP addresses and determine which one is the client IP
+		 */
+		ip_hdr = (ip *)(pkt_data + ETHER_HDR_LEN);
+		// do swap to correct byte order
+        bswapIP(ip_hdr);
+
+		b1 = isClient(ip_hdr->ip_src);
+		b2 = isClient(ip_hdr->ip_dst);
 		int appIndex = -1;
 		appIndex = *((u_short *)(pkt_data + 6)) & 0xFF;
 
@@ -66,11 +105,11 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 		// cout << appIndex << endl;
 		if ((b1 && !b2) || (!b1 && b2)) { //uplink or downlink
 			if (b1 && !b2) { // uplink
-				ip_clt = pip->ip_src.s_addr;
-				ip_svr = pip->ip_dst.s_addr;
+				ip_clt = ip_hdr->ip_src.s_addr;
+				ip_svr = ip_hdr->ip_dst.s_addr;
 			} else { //downlink
-				ip_clt = pip->ip_dst.s_addr;
-				ip_svr = pip->ip_src.s_addr;
+				ip_clt = ip_hdr->ip_dst.s_addr;
+				ip_svr = ip_hdr->ip_src.s_addr;
 			}
 		} else if (b1 && b2) { //ignore 1, both are client IP
 			ignore_count1++;
@@ -78,7 +117,9 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 			ignore_count2++;
 		}
 
-		//init userp
+		/*
+		 * differentiate different users
+		 */
 
 		userp = &(users[traceCtx.getUserID()]);
 
@@ -88,18 +129,29 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 			userp->start_time = ts;
 		}
 
-		switch (pip->ip_p) {
+		/*
+		 * Layer 4 (Transport Layer) processing
+		 */
+		switch (ip_hdr->ip_p) {
+			/*
+			 * TCP traffic
+			 */
 			case IPPROTO_TCP:
 				tcp_count++;
-				ptcp = (tcphdr *)((u_char *)pip + BYTES_PER_32BIT_WORD * pip->ip_hl); //cast of u_char* is necessary
-				payload_len = bswap16(pip->ip_len) - BYTES_PER_32BIT_WORD * (pip->ip_hl + ptcp->doff);
+				tcp_hdr = (tcphdr *)((u_char *)ip_hdr + BYTES_PER_32BIT_WORD * ip_hdr->ip_hl); //cast of u_char* is necessary
+				// do swap for TCP header
+				bswapTCP(tcp_hdr);
 
-				opt_len = BYTES_PER_32BIT_WORD * ptcp->doff - 20;
-				opt_ts = (u_int *)((u_char *)ptcp + 20);
+				payload_len = ip_hdr->ip_len - BYTES_PER_32BIT_WORD * (ip_hdr->ip_hl + tcp_hdr->doff);
+
+				opt_len = BYTES_PER_32BIT_WORD * tcp_hdr->doff - 20;
+				opt_ts = (u_int *)((u_char *)tcp_hdr + 20);
 				window_scale = 0;
 
-				// TCP options
-				while (opt_len >= 10) { //Timestamps option at least 10 bytes
+				/*
+				 * TCP options. Timestamps option at least 10 bytes
+				 */
+				while (opt_len >= 10) {
 					if ((*((u_char *)opt_ts)) == 0x08 && (*(((u_char *)opt_ts) + 1)) == 0x0a) {
 						opt_ts = (u_int *)((u_char *)opt_ts + 2);
 						opt_len = 100;
@@ -129,14 +181,14 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 				} else if (traceType.compare(CONFIG_PARAM_TRACE_DEV)==0) {
 					// Port number
 					if (b1 && !b2) { // uplink
-						port_clt = bswap16(ptcp->source);
-						port_svr = bswap16(ptcp->dest);
+						port_clt = tcp_hdr->source;
+						port_svr = tcp_hdr->dest;
 
 						tcp_up_bytes += payload_len;
 
 					} else if (!b1 && b2) { //downlink
-						port_clt = bswap16(ptcp->dest);
-						port_svr = bswap16(ptcp->source);
+						port_clt = tcp_hdr->dest;
+						port_svr = tcp_hdr->source;
 
 						tcp_down_bytes += payload_len;
 
@@ -144,7 +196,9 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 						break;
 					}
 
-					//flow statistics analysis
+					/*
+					 * flow statistics analysis
+					 */
 
 					flow_index = port_clt * (((uint64)1) << 32) + ip_clt;
 					flow_it_tmp = client_flows.find(flow_index);
@@ -157,7 +211,7 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 						flow = &(client_flows[flow_index]);
 						//found flow
 					//} else {
-					} else if (flow_it_tmp == client_flows.end() && (ptcp->syn) != 0 && (b1 && !b2)) {
+					} else if (flow_it_tmp == client_flows.end() && (tcp_hdr->syn) != 0 && (b1 && !b2)) {
 						//no flow found, now uplink SYN packet
 						//cout << "new flow: " << appName << " " << flow_index <<  endl;
 						client_flows[flow_index].clt_ip = ip_clt; //init a flow
@@ -202,7 +256,7 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 								flow_it++;
 								if (flow_it_tmp->second.end_time < ts - FLOW_MAX_IDLE_TIME) {
 									//delete a flow
-									//flow_it_tmp->second.print(-1 * ptcp->th_flags);
+									//flow_it_tmp->second.print(-1 * tcp_hdr->th_flags);
 									users[flow_it_tmp->second.userID].tcp_flows.erase(flow_it_tmp->second.flowIndex);
 									client_flows.erase(flow_it_tmp);
 								}
@@ -237,8 +291,8 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 					flow->packet_count++; //should be before the SYN-RTT analysis
 
 					//if a terminate flow packet is here, terminate flow and output flow statistics
-					if ((ptcp->fin) != 0 || (ptcp->rst) != 0) {
-						//flow->print((ptcp->fin) | (ptcp->rst));
+					if ((tcp_hdr->fin) != 0 || (tcp_hdr->rst) != 0) {
+						//flow->print((tcp_hdr->fin) | (tcp_hdr->rst));
 						flow->last_data_ts = ts;
 						//delete this flow
 						userp->tcp_flows.erase(flow_index);
@@ -286,9 +340,75 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 							}
 						}
 					}
+
+					/*
+					 * RTT and TCP pattern analysis
+					 */
+					if (b1 && !b2) { // uplink
+                        flow->update_seq_x(tcp_hdr->seq, payload_len, ts);
+					} else if (!b1 && b2) {
+                        flow->window_size = flow->window_scale * tcp_hdr->window;
+						flow->update_ack_x(tcp_hdr->ack_seq, payload_len, ts);
+					}
+
 					flow->last_data_ts = ts;
 					userp->appTime[appName] = ts;
 					/* end traceType == CONFIG_PARAM_TRACE_DEV */
+
+					//HTTP analysis
+                    if (ETHER_HDR_LEN + BYTES_PER_32BIT_WORD * (ip_hdr->ip_hl + tcp_hdr->doff) < header->caplen) {
+                        //has TCP payload
+                        payload = (char *)((char *)tcp_hdr + BYTES_PER_32BIT_WORD * tcp_hdr->doff);
+                        payload_str = string(payload);
+                        if (b1 && !b2) {
+                            //UPLINK
+                            if (payload_str.find("GET ") == 0 || payload_str.find("HEAD ") == 0 ||
+                                payload_str.find("POST ") == 0 || payload_str.find("PUT ") == 0 ||
+                                payload_str.find("DELETE ") == 0 || payload_str.find("TRACE ") == 0 ||
+                                payload_str.find("OPTIONS ") == 0 || payload_str.find("CONNECT ") == 0 ||
+                                payload_str.find("PATCH ") == 0) {
+                                //uplink HTTP request
+                                flow->http_request_count++;
+
+                                if (flow->user_agent.length() == 0) {
+                                    //only record the first user agent
+                                    start_pos = payload_str.find("User-Agent: ");
+                                    end_pos = payload_str.find("\r\n", start_pos);
+                                    if (start_pos != string::npos && end_pos > start_pos + 12)
+                                        flow->user_agent = compress_user_agent(payload_str.substr(start_pos + 12, end_pos - start_pos - 12));
+                                }
+
+                                if (flow->host.length() == 0) {
+                                    //only record the first user agent
+                                    start_pos = payload_str.find("Host: ");
+                                    end_pos = payload_str.find("\r\n", start_pos);
+                                    if (start_pos != string::npos && end_pos > start_pos + 6)
+                                        flow->host = payload_str.substr(start_pos + 6, end_pos - start_pos - 6);
+                                }
+                            }
+                        } else if (!b1 && b2) {
+                            //DOWNLINK
+                            if (payload_str.find("HTTP/1.1 200 OK") == 0 || payload_str.find("HTTP/1.0 200 OK") == 0) {
+                                //downlink HTTP 200 OK
+
+                                if (flow->content_type.length() == 0) {
+                                    //only record the first content type
+                                    start_pos = payload_str.find("Content-Type: ");
+                                    end_pos = payload_str.find("\r\n", start_pos);
+                                    if (start_pos != string::npos && end_pos > start_pos + 14)
+                                        flow->content_type = process_content_type(payload_str.substr(start_pos + 14, end_pos - start_pos - 14));
+                                }
+
+                                start_pos = payload_str.find("Content-Length: ");
+                                end_pos = payload_str.find("\r\n", start_pos);
+                                if (start_pos != string::npos && end_pos > start_pos + 16)
+                                    flow->total_content_length += StringToNumber<int>(payload_str.substr(start_pos + 16, end_pos - start_pos - 16));
+
+                            } else if (payload_str.find("HTTP/") == 0 && payload_str.find("200 OK") != -1) {
+                                cout << "HTTP_RESPONSE_SPECIAL " << payload_str << endl;
+                            }
+                        }
+                    }
 				}
 
 				break;

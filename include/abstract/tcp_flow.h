@@ -12,6 +12,7 @@
 #include "common/io.h"
 #include "common/stl.h"
 #include "proto/tcp_ip.h"
+#include "proto/http.h"
 
 class TCPFlow {
 public:
