@@ -15,9 +15,12 @@
 #include "abstract/tcp_flow.h"
 #include "common/basic.h"
 #include "common/stl.h"
+#include "common/output.h"
 #include "framework/user.h"
 #include "framework/context.h"
 #include "param/config_param.h"
+
+#define HTTP_THRESHOLD 1
 
 //Usage: StringToNumber<Type> (String);
 template <typename T>
@@ -87,6 +90,7 @@ class FlowAbstract: public TrafficAbstract{
 
 	uint64 flow_index;
 	string big_flow_index;
+
 	bool is_target_flow;
 	TCPFlow *flow;
 	user *userp;

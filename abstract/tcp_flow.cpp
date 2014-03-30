@@ -268,7 +268,7 @@ void TCPFlow::update_ack_x(u_int ack, u_short payload_len, double _actual_ts) {
     //ACK RTT analysis
     short s1 = find_seq_by_ack(ack_down[ai], sx, si);
     if (s1 != -1 && payload_len == 0) {
-        cout << "AR " << " " << ack_ts[ai] - seq_ts[s1] << " " << bytes_in_fly << endl;
+        //cout << "AR " << " " << ack_ts[ai] - seq_ts[s1] << " " << bytes_in_fly << endl;
     }//
 
     //update bytes in fly after analysis
@@ -491,10 +491,10 @@ void TCPFlow::print(u_short processed_flags) {
 char* TCPFlow::ConvertIPToString(unsigned int ip) {
         static char ipstr[17];
         sprintf(ipstr, "%d.%d.%d.%d",
-            ip & 0xFF,
-            (ip >> 8) & 0xFF,
+            ip >> 24,
             (ip >> 16) & 0xFF,
-            ip >> 24);
+            (ip >> 8) & 0xFF,
+            ip & 0xFF);
         return ipstr;
 }
 

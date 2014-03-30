@@ -9,7 +9,7 @@
 #ifndef __PacketTraceExplorer__user__
 #define __PacketTraceExplorer__user__
 
-#include <map>
+#include "common/stl.h"
 
 #include "abstract/tcp_flow.h"
 
@@ -22,6 +22,10 @@ public:
     map<uint64, TCPFlow*> tcp_flows;
     map<string, string> appTimeLog;
     map<string, double> appTime;
+
+    double last_http_time;
+    stringstream* http_req_stat;
+    int http_req_stat_size;
 
     user();
 
