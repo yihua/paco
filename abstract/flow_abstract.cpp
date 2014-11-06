@@ -395,7 +395,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                                 //uplink HTTP request
                                 flow->http_request_count++;
                                 string method, uri, host;
-                                if (appName.find("browser", 0) >= 0 && appName.find("browser", 0) < appName.length()) {
+                                if (appName.find("chrome", 0) >= 0 && appName.find("chrome", 0) < appName.length()) {
                                 	int pos = 0, next_pos;
                                 	bool uri_flag = false, host_flag = false;
                                 	string s;
@@ -470,12 +470,12 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                                     if (start_pos != string::npos && end_pos > start_pos + 6)
                                         flow->host = payload_str.substr(start_pos + 6, end_pos - start_pos - 6);
                                 }
-                            } else if (appName.find("browser", 0) >= 0 && appName.find("browser", 0) < appName.length()) {
+                            } else if (appName.find("chrome", 0) >= 0 && appName.find("chrome", 0) < appName.length()) {
                             	userp->last_http_time = ts;
                             }
                         } else if (!b1 && b2) {
                             //DOWNLINK
-                        	if (appName.find("browser", 0) >= 0 && appName.find("browser", 0) < appName.length()) {
+                        	if (appName.find("chrome", 0) >= 0 && appName.find("chrome", 0) < appName.length()) {
                         		userp->last_http_time = ts;
                         	}
                             if (payload_str.find("HTTP/1.1 200 OK") == 0 || payload_str.find("HTTP/1.0 200 OK") == 0) {

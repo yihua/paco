@@ -15,12 +15,7 @@
 #include "common/io.h"
 
 #define BLOCK_SIZE 10240
-/*
-class ResultFile {
-	public ResultFile() {
-	}
-};
-*/
+
 class OutputFile {
 public:
 	static void append(stringstream* ss, int& size, const double ts, const string append_s, const string file_name, const string user_id) {
