@@ -15,9 +15,12 @@
 #include "abstract/tcp_flow.h"
 #include "common/basic.h"
 #include "common/stl.h"
+#include "common/output.h"
 #include "framework/user.h"
 #include "framework/context.h"
 #include "param/config_param.h"
+
+#define HTTP_THRESHOLD 1
 
 //Usage: StringToNumber<Type> (String);
 template <typename T>
@@ -79,7 +82,7 @@ class FlowAbstract: public TrafficAbstract{
 
 	map<string, user> users;
 	map<string, user>::iterator user_it;
-	map<u_short, TCPFlow*>::iterator uval_it;
+	map<uint64, TCPFlow*>::iterator uval_it;
 
 	map<u_int, u_int> cip;
 	map<u_int, u_int> sip;
@@ -87,6 +90,7 @@ class FlowAbstract: public TrafficAbstract{
 
 	uint64 flow_index;
 	string big_flow_index;
+
 	bool is_target_flow;
 	TCPFlow *flow;
 	user *userp;
@@ -111,7 +115,7 @@ public:
 	//void bswapDNS(struct DNS_HEADER* dnshdr);
 
 	void configTraceType(string type);
-	void runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
+	void runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
 	void runCleanUp();
 };
 

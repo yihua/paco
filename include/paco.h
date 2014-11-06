@@ -6,9 +6,9 @@
  */
 
 #ifndef _PACO_FRAMEWORK_H
-#define _PCAO_FRAMEWORK_H
+#define _PACO_FRAMEWORK_H
 
 #include "framework/measure_task.h"
 #include "framework/packet_analyzer.h"
 
-#endif /* _PCAO_FRAMEWORK_H */
+#endif /* _PACO_FRAMEWORK_H */

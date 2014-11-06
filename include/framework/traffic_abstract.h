@@ -13,6 +13,7 @@
 
 #include "framework/measure_task.h"
 #include "framework/context.h"
+#include "framework/result.h"
 #include "param/config_param.h"
 
 class TrafficAbstract {
@@ -21,7 +22,7 @@ private:
 	vector<int *> mMeasureTask;
 public:
 //	TrafficAbstract();
-	virtual void runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data)=0;
+	virtual void runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data)=0;
 	virtual void runCleanUp() = 0;
 };
 

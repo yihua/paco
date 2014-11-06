@@ -55,7 +55,7 @@ void FlowAbstract::bswapUDP(struct udphdr* udphdr) {
 	udphdr->check=bswap16(udphdr->check);
 }
 
-void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
+void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
 	/*
 	 * first packet ever. set the base time.
 	 * maintain the time of the last packet.
@@ -127,8 +127,24 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 		if (userp->start_time == 0) {
 			//init
 			userp->start_time = ts;
+                        userp->cc_start = ts;
 		}
-
+		/* TCP Concurrency statistics*/
+		if (ts - userp->cc_start > 1.0) {
+			int concurrency = 0;
+			for (uval_it = userp->tcp_flows.begin(); uval_it != userp->tcp_flows.end(); uval_it++) {
+				if (uval_it->second->last_data_time > userp->cc_start)
+					concurrency++;
+			}
+			if (concurrency > 0) {
+				char buf[100];
+				sprintf(buf, "%s %.6lf %d\n", traceCtx.getUserID().c_str(), userp->cc_start, concurrency);
+				string s(buf);
+				result->addResultToFile(1, s);
+			}
+			while (ts - userp->cc_start > 1.0)
+				userp->cc_start += 1.0;
+		}
 		/*
 		 * Layer 4 (Transport Layer) processing
 		 */
@@ -230,7 +246,7 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 
 
 						// new burst/background notification
-
+						/*
 						if (userp->appTimeLog.find(appName) == userp->appTimeLog.end()) {
 							if (!traceCtx.isScreenOn() ||
 									(traceCtx.isScreenOn() && !traceCtx.isForeground(appName))) {
@@ -245,7 +261,7 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 								userp->appTimeLog[appName] += buf;
 								userp->appTimeLog[appName] += "\n";
 							}
-						}
+						}*/
 
 						if (client_flows.size() >= 100000 && ts - last_prune_time >= FLOW_MAX_IDLE_TIME / 2) {
 						//if (ts - last_prune_time >= FLOW_MAX_IDLE_TIME) {
@@ -261,6 +277,7 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 									client_flows.erase(flow_it_tmp);
 								}
 							}//*/
+							/*
 							map<string, user>::iterator user_it;
 							for (user_it = users.begin(); user_it != users.end(); user_it++) {
 								user *tmp_user = &(user_it->second);
@@ -276,7 +293,7 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 									f_output.close();
 								}
 								tmp_user->appTimeLog.clear();
-							}
+							}*/
 						}
 					} else {
 						//no flow found and not link SYN packet
@@ -301,7 +318,9 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 					} else { // all packets of this flow goes to here except for the FIN and RST packets
 						if (b1 && !b2) { // uplink
 							if (payload_len > 0) {
+								flow->last_data_time = ts;
 								// data
+								/*
 								if (ts - flow->last_data_ts > this->BURST_THRESHOLD) {
 									//cout << "uplink " << appName << " " << flow_index << " " << ts << " " << flow->last_data_ts <<  endl;
 									if (userp->appTimeLog.find(appName) == userp->appTimeLog.end()) {
@@ -316,12 +335,14 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 											userp->appTimeLog[appName] += "\n";
 										}
 									}
-								}
+								}*/
 							}
 
 						} else if (!b1 && b2) { //downlink
 							if (payload_len > 0) {
+								flow->last_data_time = ts;
 								// data
+								/*
 								if (ts - flow->last_data_ts > this->BURST_THRESHOLD) {
 									//cout << "downlink " << appName << " " << flow_index << " " << ts << " " << flow->last_data_ts <<  endl;
 									if (userp->appTimeLog.find(appName) == userp->appTimeLog.end()) {
@@ -336,7 +357,7 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
 											userp->appTimeLog[appName] += "\n";
 										}
 									}
-								}
+								}*/
 							}
 						}
 					}
@@ -348,13 +369,17 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
                         flow->update_seq_x(tcp_hdr->seq, payload_len, ts);
 					} else if (!b1 && b2) {
                         flow->window_size = flow->window_scale * tcp_hdr->window;
+                        //cout << setprecision(16) << ts;
+                        //cout << " " << flow->ConvertIPToString(ip_hdr->ip_src.s_addr);
+                        //cout << " " << flow->ConvertIPToString(ip_hdr->ip_dst.s_addr);
+                        //cout << " " << tcp_hdr->seq << " " << tcp_hdr->ack_seq << endl;
 						flow->update_ack_x(tcp_hdr->ack_seq, payload_len, ts);
 					}
 
 					flow->last_data_ts = ts;
 					userp->appTime[appName] = ts;
 					/* end traceType == CONFIG_PARAM_TRACE_DEV */
-
+			/*
 					//HTTP analysis
                     if (ETHER_HDR_LEN + BYTES_PER_32BIT_WORD * (ip_hdr->ip_hl + tcp_hdr->doff) < header->caplen) {
                         //has TCP payload
@@ -369,7 +394,67 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
                                 payload_str.find("PATCH ") == 0) {
                                 //uplink HTTP request
                                 flow->http_request_count++;
+                                string method, uri, host;
+                                if (appName.find("browser", 0) >= 0 && appName.find("browser", 0) < appName.length()) {
+                                	int pos = 0, next_pos;
+                                	bool uri_flag = false, host_flag = false;
+                                	string s;
+                                	while (pos >= 0) {
+                                		next_pos = payload_str.find('\n', pos);
+                                		if (next_pos < 0)
+                                			break;
+                                		s = payload_str.substr(pos, next_pos-pos);
+                                		if ((!uri_flag) && (s.find("GET ") == 0 || s.find("HEAD ") == 0 ||
+                                                s.find("POST ") == 0 || s.find("PUT ") == 0 ||
+                                                s.find("DELETE ") == 0 || s.find("TRACE ") == 0 ||
+                                                s.find("OPTIONS ") == 0 || s.find("CONNECT ") == 0 ||
+                                                s.find("PATCH ") == 0)) {
+                                			//cout << "Method:" << "\t" << s << endl;
+                                			int pos1, pos2;
+                                			pos1 = s.find(' ', 0);
+                                			method = s.substr(0, pos1);
+                                			pos2 = s.find(' ', pos1+1);
+                                			uri = s.substr(pos1+1, pos2-pos1-1);
+                                			uri_flag = true;
+                                		}
 
+                                		if ((!host_flag) && s.find("Host:") == 0) {
+                                			//cout << "Hostline:" << "\t" << s << endl;
+                                			int pos1 = s.find("\r", 0);
+                                			if (pos1 < 0) {
+                                				pos1 = s.length();
+                                			}
+                                			host = s.substr(6, pos1 - 6);
+                                			host_flag = true;
+                                		}
+
+                                		if (uri_flag && host_flag) {
+                                			break;
+                                		}
+                                		pos = next_pos+1;
+                                	}
+                                	string append_s("\n");
+                                	//append_s += appName;
+                                	//append_s += "\t";
+                                	append_s += (host+uri);
+                                	append_s += "\t";
+                                	//append_s += method;
+                                	//append_s += "\n";
+                                	if (!userp->last_http_time > 0.1) {
+                                		string append_ss("");
+                                		append_ss += (host+uri);
+                                		append_ss += "\t";
+                                		OutputFile::append(userp->http_req_stat, userp->http_req_stat_size, 0, append_ss, "http_stat_output_", traceCtx.getUserID());
+                                		//cout << ">>>>>>>>>>>>>>>>>>>>> " << traceCtx.getUserID() << "\t" << (host+uri) << endl;
+                                	}
+                                	else if (ts - userp->last_http_time > HTTP_THRESHOLD) {
+                                		OutputFile::append(userp->http_req_stat, userp->http_req_stat_size, ts - userp->last_http_time, append_s, "http_stat_output_", traceCtx.getUserID());
+                                		//cout << ">>>>>>>>>>>>>>>>>>>>> " << traceCtx.getUserID() << "\t" << (host+uri) << "\t" << (ts - userp->last_http_time)*1000.0 << endl;
+                                	}
+                                	userp->last_http_time = ts;
+
+                                	//cout << ts << "\t" << appName << "\t" << host+uri << "\t" << method << endl;
+                            	}
                                 if (flow->user_agent.length() == 0) {
                                     //only record the first user agent
                                     start_pos = payload_str.find("User-Agent: ");
@@ -385,9 +470,14 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
                                     if (start_pos != string::npos && end_pos > start_pos + 6)
                                         flow->host = payload_str.substr(start_pos + 6, end_pos - start_pos - 6);
                                 }
+                            } else if (appName.find("browser", 0) >= 0 && appName.find("browser", 0) < appName.length()) {
+                            	userp->last_http_time = ts;
                             }
                         } else if (!b1 && b2) {
                             //DOWNLINK
+                        	if (appName.find("browser", 0) >= 0 && appName.find("browser", 0) < appName.length()) {
+                        		userp->last_http_time = ts;
+                        	}
                             if (payload_str.find("HTTP/1.1 200 OK") == 0 || payload_str.find("HTTP/1.0 200 OK") == 0) {
                                 //downlink HTTP 200 OK
 
@@ -408,7 +498,7 @@ void FlowAbstract::runMeasureTask(Context& traceCtx, const struct pcap_pkthdr *h
                                 cout << "HTTP_RESPONSE_SPECIAL " << payload_str << endl;
                             }
                         }
-                    }
+                    }*/
 				}
 
 				break;

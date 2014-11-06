@@ -15,7 +15,7 @@
 #include <inttypes.h>
 
 typedef unsigned long long uint64;
-#ifdef __FreeBSD__ || __NetBSD__ || __OpenBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
    #include <sys/endian.h>
    u_short bswap16(u_short);
    u_int bswap32(u_int);

@@ -13,6 +13,7 @@
 #include "framework/measure_task.h"
 #include "framework/traffic_abstract.h"
 #include "framework/context.h"
+#include "framework/result.h"
 #include "param/config_param.h"
 #include "framework/pcap.h"
 #include "common/basic.h"
@@ -25,6 +26,7 @@ private:
 	vector<string> mTraceList;
 	Context mTraceCtx;
 	ConfigParam mConfigParam;
+	Result* finalResult;
 
 	string getFolder(string s);
 	string getUserID(string s);
@@ -36,6 +38,7 @@ public:
 	void config();
 	void clearConfig();
 	void setConfigParam(ConfigParam param);
+	void setResult(Result* r);
 	Context& getContext();
 	ConfigParam getConfigParam();
 	void run();

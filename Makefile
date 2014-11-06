@@ -11,7 +11,9 @@ SOURCES=\
 		framework/packet_analyzer.cpp\
 		framework/user.cpp\
 		framework/context.cpp\
+		framework/result.cpp\
 		common/param.cpp\
+		common/output.cpp\
 		param/config_param.cpp\
 		abstract/tcp_flow.cpp\
 		abstract/flow_abstract.cpp\

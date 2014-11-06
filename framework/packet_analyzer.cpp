@@ -66,6 +66,10 @@ void PacketAnalyzer::setConfigParam(ConfigParam param){
     config();
 }
 
+void PacketAnalyzer::setResult(Result* r) {
+	finalResult = r;
+}
+
 Context& PacketAnalyzer::getContext(){
     return mTraceCtx;
 }
@@ -143,7 +147,8 @@ void PacketAnalyzer::run() {
 	}
 
 	// end
-
+	finalResult->flush();
+	//finalResult->closeAllResultFiles();
 	vector<int*>::iterator end_it;
 	for (end_it = mTrafficAbstract.begin(); end_it != mTrafficAbstract.end(); end_it++) {
 		((TrafficAbstract*)(*end_it))->runCleanUp();
@@ -153,6 +158,6 @@ void PacketAnalyzer::run() {
 void PacketAnalyzer::runTrafficAbstract(Context& ctx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
 	vector<int*>::iterator it;
 	for (it = mTrafficAbstract.begin(); it != mTrafficAbstract.end(); it++) {
-		((TrafficAbstract*)(*it))->runMeasureTask(ctx, header, pkt_data);
+		((TrafficAbstract*)(*it))->runMeasureTask(finalResult, ctx, header, pkt_data);
 	}
 }

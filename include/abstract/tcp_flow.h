@@ -39,6 +39,7 @@ public:
     double start_time;
     double first_byte_time; //first byte from server to client
     double last_byte_time; //last byte from server to client
+    double last_data_time; //last byte for both uplink and downlink
     double end_time;
     double idle_time;
     double syn_rtt, syn_ack_rtt;
