@@ -21,14 +21,32 @@ void FlowAbstract::configTraceType(string type) {
 	traceType = type;
 }
 
-bool FlowAbstract::isClient(in_addr addr) {
-        //for Yihua's trace, server trace: client is 198.*; client trace: client is 10.*; and 32.* for 3G trace
-        return (((addr.s_addr & 0xFF000000) >> 24 == 192 && (addr.s_addr & 0xFF0000) >> 16 == 168) ||
-        		((addr.s_addr & 0xFF000000) >> 24 == 67 && (addr.s_addr & 0xFF0000) >> 16 == 194) ||
-        		((addr.s_addr & 0xFF000000) >> 24 == 35 && (addr.s_addr & 0xFF0000) >> 16 == 0) ||
-                (addr.s_addr & 0xFF000000) >> 24 == 10) ? true : false;
+string FlowAbstract::getTraceType() {
+	return traceType;
+}
 
-    //    return ((addr.s_addr & 0xFF) == 10) ? true : false;
+string FlowAbstract::intToString(int x) {
+	char s[24];
+	sprintf(s, "%d", x);
+	string ss(s);
+	return ss;
+}
+
+bool FlowAbstract::isClient(in_addr addr) {
+		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV))
+    	//for Yihua's trace, server trace: client is 198.*; client trace: client is 10.*; and 32.* for 3G trace
+        	return (((addr.s_addr & 0xFF000000) >> 24 == 192 && (addr.s_addr & 0xFF0000) >> 16 == 168) ||
+        			((addr.s_addr & 0xFF000000) >> 24 == 67 && (addr.s_addr & 0xFF0000) >> 16 == 194) ||
+        			((addr.s_addr & 0xFF000000) >> 24 == 35 && (addr.s_addr & 0xFF0000) >> 16 == 0) ||
+                	(addr.s_addr & 0xFF000000) >> 24 == 10) ? true : false;
+        else if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_SPGW) ||
+        	ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_ENB))
+    	    return ((addr.s_addr & 0xFF000000) >> 24 == 10) ? true : false;
+    	else
+    		return (((addr.s_addr & 0xFF000000) >> 24 == 192 && (addr.s_addr & 0xFF0000) >> 16 == 168) ||
+        			((addr.s_addr & 0xFF000000) >> 24 == 67 && (addr.s_addr & 0xFF0000) >> 16 == 194) ||
+        			((addr.s_addr & 0xFF000000) >> 24 == 35 && (addr.s_addr & 0xFF0000) >> 16 == 0) ||
+                	(addr.s_addr & 0xFF000000) >> 24 == 10) ? true : false;
 }
 
 void FlowAbstract::bswapIP(struct ip* ip) {
@@ -57,8 +75,7 @@ void FlowAbstract::bswapUDP(struct udphdr* udphdr) {
 
 void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
 	/*
-	 * first packet ever. set the base time.
-	 * maintain the time of the last packet.
+	 * first packet ever. set the base time. maintain the time of the last packet.
 	 */
 	if (is_first) {
 		this->ETHER_HDR_LEN = traceCtx.getEtherLen();
@@ -67,10 +84,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		last_time_sec = start_time_sec;
 		end_time_sec = start_time_sec;
 
-		//if (RUNNING_LOCATION == RLOC_CONTROL_SERVER || RUNNING_LOCATION == RLOC_CONTROL_CLIENT) {
-			TIME_BASE = (double)(header->ts.tv_sec) + (double)header->ts.tv_usec / (double)USEC_PER_SEC;
-		//}
-		//cout << "TIME_BASE " << fixed << TIME_BASE << endl;
+		TIME_BASE = (double)(header->ts.tv_sec) + (double)header->ts.tv_usec / (double)USEC_PER_SEC;
 	} else {
 		end_time_sec = header->ts.tv_sec;
 	}
@@ -99,9 +113,13 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		appIndex = *((u_short *)(pkt_data + 6)) & 0xFF;
 
 		string appName("none");
-		if (appIndex < traceCtx.getAppNameMap().size()) {
-			appName.assign(traceCtx.getAppNameByIndex(appIndex));
+
+		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)) {
+			if (appIndex < traceCtx.getAppNameMap().size()) {
+				appName.assign(traceCtx.getAppNameByIndex(appIndex));
+			}
 		}
+
 		// cout << appIndex << endl;
 		if ((b1 && !b2) || (!b1 && b2)) { //uplink or downlink
 			if (b1 && !b2) { // uplink
@@ -120,20 +138,39 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		/*
 		 * differentiate different users
 		 */
+		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)) {
+			userp = &(users[traceCtx.getUserID()]);
+			userp->userID.assign(traceCtx.getUserID());
+		} else {
+			userp = &(users[intToString(ip_clt)]);
+			userp->userID.assign(intToString(ip_clt));
+		}
 
-		userp = &(users[traceCtx.getUserID()]);
-
-		userp->userID.assign(traceCtx.getUserID());
 		if (userp->start_time == 0) {
 			//init
 			userp->start_time = ts;
-                        userp->cc_start = ts;
+			userp->cc_start = ts;
+			userp->last_cc_sample_time = ts;
+			if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV) ||
+				ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_ENB))
+				userp->is_sample = true;
+			else
+				userp->is_sample = false;
 		}
+
 		/* TCP Concurrency statistics*/
-		if (ts - userp->cc_start > 1.0) {
+		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_SPGW) &&
+			ts - userp->last_cc_sample_time > CC_SAMPLE_PERIOD &&
+			!userp->is_sample) {
+			userp->is_sample = true;
+			userp->cc_start = ts;
+			userp->last_cc_sample_time = ts + CC_SAMPLE_PERIOD;
+		}
+
+		if (userp->is_sample && ts - userp->cc_start > 1.0) {
 			int concurrency = 0;
-			for (uval_it = userp->tcp_flows.begin(); uval_it != userp->tcp_flows.end(); uval_it++) {
-				if (uval_it->second->last_data_time > userp->cc_start)
+			for (flow_it = userp->tcp_flows.begin(); flow_it != userp->tcp_flows.end(); flow_it++) {
+				if (flow_it->second->last_data_time > userp->cc_start)
 					concurrency++;
 			}
 			if (concurrency > 0) {
@@ -144,6 +181,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			}
 			while (ts - userp->cc_start > 1.0)
 				userp->cc_start += 1.0;
+			if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_SPGW))
+				userp->is_sample = false;
 		}
 		/*
 		 * Layer 4 (Transport Layer) processing
@@ -216,25 +255,34 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					 * flow statistics analysis
 					 */
 
-					flow_index = port_clt * (((uint64)1) << 32) + ip_clt;
-					flow_it_tmp = client_flows.find(flow_index);
+					//flow_index = port_clt * (((uint64)1) << 32) + ip_clt;
+					if (ip_clt < ip_svr)
+						flow_index = intToString(ip_clt) + ":" + intToString(port_clt) + "|" +
+										intToString(ip_svr) + ":" + intToString(port_svr);
+					else
+						flow_index = intToString(ip_svr) + ":" + intToString(port_svr) + "|" +
+										intToString(ip_clt) + ":" + intToString(port_clt);
 
-					char buf[50];
+					flow_it_tmp = userp->tcp_flows.find(flow_index);
+
+					//char buf[50];
 					//sprintf(buf, "%.6f %" PRIu64 "", ts, flow_index);
-					sprintf(buf, "%.6f", ts);
+					//sprintf(buf, "%.6f", ts);
 
-					if (flow_it_tmp != client_flows.end()) {
-						flow = &(client_flows[flow_index]);
+					if (flow_it_tmp != userp->tcp_flows.end()) {
+						flow = userp->tcp_flows[flow_index];
 						//found flow
 					//} else {
-					} else if (flow_it_tmp == client_flows.end() && (tcp_hdr->syn) != 0 && (b1 && !b2)) {
+					} else if (flow_it_tmp == userp->tcp_flows.end() && (tcp_hdr->syn) != 0 && (b1 && !b2)) {
 						//no flow found, now uplink SYN packet
 						//cout << "new flow: " << appName << " " << flow_index <<  endl;
-						client_flows[flow_index].clt_ip = ip_clt; //init a flow
+						userp->tcp_flows[flow_index] = new TCPFlow();
+						flow = userp->tcp_flows[flow_index];
+
+						flow->clt_ip = ip_clt; //init a flow
 						flow_count++;
 
-						flow = &client_flows[flow_index];
-						userp->tcp_flows[flow_index] = flow;
+						//userp->tcp_flows[flow_index] = flow;
 						flow->flowIndex = flow_index;
 						flow->idle_time_before_syn = ts - userp->last_packet_time;
 						flow->svr_ip = ip_svr;
@@ -262,7 +310,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 								userp->appTimeLog[appName] += "\n";
 							}
 						}*/
-
+								/*
 						if (client_flows.size() >= 100000 && ts - last_prune_time >= FLOW_MAX_IDLE_TIME / 2) {
 						//if (ts - last_prune_time >= FLOW_MAX_IDLE_TIME) {
 							cout << "Flowsize " << ts << " " << client_flows.size() << endl;
@@ -294,7 +342,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 								}
 								tmp_user->appTimeLog.clear();
 							}*/
-						}
+						//}
 					} else {
 						//no flow found and not link SYN packet
 						//could be ACKs after RST/FIN packets
@@ -303,7 +351,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						break;
 					}
 
-					flow = &client_flows[flow_index];
+					//flow = &client_flows[flow_index];
 					flow->end_time = ts;
 					flow->packet_count++; //should be before the SYN-RTT analysis
 
@@ -313,7 +361,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						flow->last_data_ts = ts;
 						//delete this flow
 						userp->tcp_flows.erase(flow_index);
-						client_flows.erase(flow_index);
+						//client_flows.erase(flow_index);
 						break;
 					} else { // all packets of this flow goes to here except for the FIN and RST packets
 						if (b1 && !b2) { // uplink
@@ -533,7 +581,7 @@ void FlowAbstract::runCleanUp() {
 	for (user_it = users.begin(); user_it != users.end(); user_it++) {
 		user *tmp_user = &(user_it->second);
 		map<string, string>::iterator log_it;
-		for (log_it = tmp_user->appTimeLog.begin();
+		/*for (log_it = tmp_user->appTimeLog.begin();
 				log_it != tmp_user->appTimeLog.end(); log_it++) {
 			string f_name("tslog__");
 			f_name += user_it->first;
@@ -542,7 +590,7 @@ void FlowAbstract::runCleanUp() {
 			ofstream f_output(f_name.c_str(), ios::app);
 			f_output << log_it->second;
 			f_output.close();
-		}
+		}*/
 		tmp_user->appTimeLog.clear();
 	}
 }

@@ -97,8 +97,9 @@ void PacketAnalyzer::run() {
 
 	string curr_folder, tmp_folder, tmp_s;
 	int trace_count = 0;
+	int c_cycle = mConfigParam.getCountCycle();
 	for (it = mTraceList.begin(); it != mTraceList.end(); it++) {
-		if (trace_count % 1000 == 0) {
+		if (trace_count % c_cycle == 0) {
 			cout << trace_count << " files processed." << endl;
 		}
 
@@ -108,26 +109,26 @@ void PacketAnalyzer::run() {
 			continue;
 		}
 
-		// read application map, screen status and process stat
-		tmp_folder = getFolder(*it);
-		tmp_folder += "appname";
-		if (tmp_folder.compare(curr_folder) != 0) {
-			curr_folder = tmp_folder;
-			cout << "Folder Name: " << curr_folder << endl;
-			mTraceCtx.clearAppNameMap();
+		if (mConfigParam.isTraceType(CONFIG_PARAM_TRACE_DEV)) {
+			// read application map, screen status and process stat
+			tmp_folder = getFolder(*it);
+			tmp_folder += "appname";
+			if (tmp_folder.compare(curr_folder) != 0) {
+				curr_folder = tmp_folder;
+				cout << "Folder Name: " << curr_folder << endl;
+				mTraceCtx.clearAppNameMap();
 
-			ifstream appNameFile(tmp_folder.c_str());
-			while (getline(appNameFile, tmp_s)) {
-				mTraceCtx.addAppName(tmp_s);
+				ifstream appNameFile(tmp_folder.c_str());
+				while (getline(appNameFile, tmp_s)) {
+					mTraceCtx.addAppName(tmp_s);
+				}
+
+				mTraceCtx.updateFile(getFolder(*it));
 			}
 
-			mTraceCtx.updateFile(getFolder(*it));
+			// get user ID
+			mTraceCtx.setUserID(getUserID(*it));
 		}
-
-
-
-		// get user ID
-		mTraceCtx.setUserID(getUserID(*it));
 
 
 		// pcap link layer header length

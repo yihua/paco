@@ -22,6 +22,8 @@
 
 #define HTTP_THRESHOLD 1
 
+#define CC_SAMPLE_PERIOD 100.0 // s
+
 //Usage: StringToNumber<Type> (String);
 template <typename T>
 T StringToNumber (const string &Text) {
@@ -74,21 +76,22 @@ class FlowAbstract: public TrafficAbstract{
 	__gnu_cxx::hash_map<u_int, u_int> enb_load;
 	__gnu_cxx::hash_map<u_int, u_int>::iterator itmap;
 
-	map<uint64, TCPFlow>::iterator flow_it;
-	map<uint64, TCPFlow>::iterator flow_it_tmp;
-	map<uint64, TCPFlow> client_flows;
+	//map<string, TCPFlow>::iterator flow_it;
+	//map<string, TCPFlow>::iterator flow_it_tmp;
+	//map<string, TCPFlow> client_flows;
 	map<string, pair<double, double> > big_flows;
 	map<string, pair<double, double> >::iterator big_flow_it_tmp;
 
 	map<string, user> users;
 	map<string, user>::iterator user_it;
-	map<uint64, TCPFlow*>::iterator uval_it;
+	map<string, TCPFlow*>::iterator flow_it;
+	map<string, TCPFlow*>::iterator flow_it_tmp;
 
 	map<u_int, u_int> cip;
 	map<u_int, u_int> sip;
 	map<u_int, u_int>::iterator csit;
 
-	uint64 flow_index;
+	string flow_index;
 	string big_flow_index;
 
 	bool is_target_flow;
@@ -106,6 +109,7 @@ class FlowAbstract: public TrafficAbstract{
 	string traceType;
 
 	int ETHER_HDR_LEN;
+
 public:
 	FlowAbstract();
 
@@ -114,7 +118,10 @@ public:
 	void bswapUDP(struct udphdr* udphdr);
 	//void bswapDNS(struct DNS_HEADER* dnshdr);
 
+    string intToString(int x);
+
 	void configTraceType(string type);
+	string getTraceType();
 	void runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
 	void runCleanUp();
 };

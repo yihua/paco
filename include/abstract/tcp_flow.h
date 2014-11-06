@@ -16,7 +16,7 @@
 
 class TCPFlow {
 public:
-	uint64 flowIndex;
+	string flowIndex;
     u_int svr_ip;
     u_int clt_ip;
     u_short svr_port;

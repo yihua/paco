@@ -9,6 +9,7 @@ int main() {
 	param.configTraceList(traceList);
 	param.configContextType(CONFIG_PARAM_TRACE_DEV);
 	param.configMeasumentTask(CONFIG_PARAM_MEASUREMENT_TCPFLOW);
+	param.configCountCycle("1000");
 
 	Result* result = new Result();
 	string path("/home/yhguo/PACO/concurrency_result.txt");

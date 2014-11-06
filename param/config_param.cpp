@@ -26,8 +26,18 @@ void ConfigParam::configTraceType(string s) {
 	put(CONFIG_PARAM_TRACE, s);
 }
 
+bool ConfigParam::isTraceType(string s) {
+	if (getTraceType().compare(s) == 0)
+		return true;
+	return false;
+}
+
 void ConfigParam::configMeasumentTask(string s){
 	put(CONFIG_PARAM_MEASUREMENT, s);
+}
+
+void ConfigParam::configCountCycle(string s) {
+	put(CONFIG_PARAM_COUNT_CYCLE, s);
 }
 
 string ConfigParam::getContextType() {
@@ -44,4 +54,8 @@ string ConfigParam::getTraceType() {
 
 string ConfigParam::getMeasumentTask() {
 	return get(CONFIG_PARAM_MEASUREMENT);
+}
+
+int ConfigParam::getCountCycle() {
+	return atoi(get(CONFIG_PARAM_COUNT_CYCLE).c_str());
 }

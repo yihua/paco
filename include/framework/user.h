@@ -13,6 +13,11 @@
 
 #include "abstract/tcp_flow.h"
 
+struct string_less {
+    bool operator() (const string& lhs, const string& rhs) const {
+        return lhs.compare(rhs) < 0;
+    }
+};
 
 class user {
 public:
@@ -20,8 +25,10 @@ public:
     double start_time;
     double last_packet_time;
     double cc_start;
+    double last_cc_sample_time;
+    bool is_sample;
 
-    map<uint64, TCPFlow*> tcp_flows;
+    map<string, TCPFlow*> tcp_flows;
     map<string, string> appTimeLog;
     map<string, double> appTime;
 
