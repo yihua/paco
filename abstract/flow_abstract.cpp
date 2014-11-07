@@ -49,6 +49,17 @@ bool FlowAbstract::isClient(in_addr addr) {
                 	(addr.s_addr & 0xFF000000) >> 24 == 10) ? true : false;
 }
 
+bool FlowAbstract::isControlledServer(in_addr addr) {
+	if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)) {
+		if ((addr.s_addr & 0xFF000000) >> 24 == 141 && (addr.s_addr & 0xFF0000) >> 16 == 212) {
+			//cout << "141.212." << ((addr.s_addr & 0xFF00) >> 8)
+			//  << "."<< (addr.s_addr & 0xFF) << endl;
+			return true;
+		}
+	}
+	return false;
+}
+
 void FlowAbstract::bswapIP(struct ip* ip) {
 	ip->ip_len=bswap16(ip->ip_len);
 	ip->ip_id=bswap16(ip->ip_id);
@@ -109,12 +120,15 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 
 		b1 = isClient(ip_hdr->ip_src);
 		b2 = isClient(ip_hdr->ip_dst);
+		if (isControlledServer(ip_hdr->ip_src) || isControlledServer(ip_hdr->ip_dst))
+			return;
 		int appIndex = -1;
 		appIndex = *((u_short *)(pkt_data + 6)) & 0xFF;
 
 		string appName("none");
 
 		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)) {
+			//cout << "flow abtract dev" << endl;
 			if (appIndex < traceCtx.getAppNameMap().size()) {
 				appName.assign(traceCtx.getAppNameByIndex(appIndex));
 			}

@@ -8,6 +8,7 @@ int main() {
 	ConfigParam param;
 	param.configTraceList(traceList);
 	param.configContextType(CONFIG_PARAM_TRACE_DEV);
+	param.configTraceType(CONFIG_PARAM_TRACE_DEV);
 	param.configMeasumentTask(CONFIG_PARAM_MEASUREMENT_TCPFLOW);
 	param.configCountCycle("1000");
 

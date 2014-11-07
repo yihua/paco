@@ -106,6 +106,7 @@ class FlowAbstract: public TrafficAbstract{
 	u_int jump;
 
 	bool isClient(in_addr addr);
+	bool isControlledServer(in_addr addr);
 	string traceType;
 
 	int ETHER_HDR_LEN;

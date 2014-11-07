@@ -111,11 +111,12 @@ void PacketAnalyzer::run() {
 
 		if (mConfigParam.isTraceType(CONFIG_PARAM_TRACE_DEV)) {
 			// read application map, screen status and process stat
+			//cout << "get user id" << endl;
 			tmp_folder = getFolder(*it);
 			tmp_folder += "appname";
 			if (tmp_folder.compare(curr_folder) != 0) {
 				curr_folder = tmp_folder;
-				cout << "Folder Name: " << curr_folder << endl;
+				//cout << "Folder Name: " << curr_folder << endl;
 				mTraceCtx.clearAppNameMap();
 
 				ifstream appNameFile(tmp_folder.c_str());
