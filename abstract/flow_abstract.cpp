@@ -106,15 +106,25 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 	 * update device context information
 	 */
 	traceCtx.updateContext(ts);
-
+	bool doIPProcess = false;
 	/*
 	 * Layer 3 (Network Layer) process
 	 */
-	if (*((u_short *)(pkt_data + ETHER_HDR_LEN - 2)) == ETHERTYPE_IP) {
+	if ((ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV || 
+		ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_SPGW)) && 
+		*((u_short *)(pkt_data + ETHER_HDR_LEN - 2)) == ETHERTYPE_IP) {
 		/*
 		 * IP packet processing. Extract IP addresses and determine which one is the client IP
 		 */
 		ip_hdr = (ip *)(pkt_data + ETHER_HDR_LEN);
+		doIPProcess = true;
+	}
+	if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_ENB)) {
+		ip_hdr = (ip *)(pkt_data + ETHER_HDR_LEN + 40);
+		doIPProcess = true;
+	}
+
+	if (doIPProcess) {
 		// do swap to correct byte order
         bswapIP(ip_hdr);
 
