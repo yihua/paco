@@ -166,8 +166,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			userp = &(users[traceCtx.getUserID()]);
 			userp->userID.assign(traceCtx.getUserID());
 		} else {
-			userp = &(users[intToString(ip_clt)]);
-			userp->userID.assign(intToString(ip_clt));
+			userp = &(users[intToString((unsigned int)ip_clt)]);
+			userp->userID.assign(intToString((unsigned int)ip_clt));
 		}
 
 		if (userp->start_time == 0) {
@@ -206,7 +206,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			}
 			if (concurrency > 0) {
 				char buf[100];
-				sprintf(buf, "%s %.6lf %d\n", traceCtx.getUserID().c_str(), userp->cc_start, concurrency);
+				sprintf(buf, "%s %.6lf %d\n", userp->userID.c_str(), userp->cc_start, concurrency);
 				string s(buf);
 				result->addResultToFile(1, s);
 			}
