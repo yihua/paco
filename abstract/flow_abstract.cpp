@@ -264,7 +264,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 
 				if (traceType.compare("-1")==0) {
 				/* end traceType == -1 */
-				} else if (traceType.compare(CONFIG_PARAM_TRACE_DEV)==0) {
+				} else {//if (traceType.compare(CONFIG_PARAM_TRACE_DEV)==0) {
 					// Port number
 					if (b1 && !b2) { // uplink
 						port_clt = tcp_hdr->source;
