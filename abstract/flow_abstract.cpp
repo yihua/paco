@@ -110,7 +110,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 	/*
 	 * Layer 3 (Network Layer) process
 	 */
-	if ((ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV || 
+	if ((ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV) || 
 		ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_SPGW)) && 
 		*((u_short *)(pkt_data + ETHER_HDR_LEN - 2)) == ETHERTYPE_IP) {
 		/*
