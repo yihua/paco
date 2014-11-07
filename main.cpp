@@ -4,7 +4,7 @@
 using namespace std;
 
 int main() {
-	string traceList("/home/yhguo/PACO/pcaplistallsort");
+	string traceList("/z/uplink-bufferbloat/PACO/pcaplistallsort");
 	ConfigParam param;
 	param.configTraceList(traceList);
 	param.configContextType(CONFIG_PARAM_TRACE_DEV);
@@ -12,7 +12,7 @@ int main() {
 	param.configCountCycle("1000");
 
 	Result* result = new Result();
-	string path("/home/yhguo/PACO/concurrency_result.txt");
+	string path("/z/uplink-bufferbloat/PACO/concurrency_result.txt");
 	result->addResultFile(1, path);
 	PacketAnalyzer analyzer;
 	analyzer.setConfigParam(param);
