@@ -92,6 +92,11 @@ void FlowAbstract::bswapUDP(struct udphdr* udphdr) {
 	udphdr->check=bswap16(udphdr->check);
 }
 
+void FlowAbstract::bswapGTP(gtphdr* gtphdr){
+	gtphdr->len = bswap16(gtphdr->len);
+	gtphdr->teid = bswap32(gtphdr->teid);
+}
+
 void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
 	packet_count++;
 	/*
@@ -129,8 +134,40 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		doIPProcess = true;
 	}
 	if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_ENB)) {
-		ip_hdr = (ip *)(pkt_data + ETHER_HDR_LEN + 40);
-		doIPProcess = true;
+		if (*((u_short *)(pkt_data + ETHER_HDR_LEN - 2)) == ETHERTYPE_8021Q) {
+			ip_hdr = (ip *)(pkt_data + ETHER_HDR_LEN + VLAN_HDR_8021Q_LEN);
+			if (*((u_short *)((u_char *)ip_hdr - 2)) == ETHERTYPE_IP) {
+				udp_hdr = (udphdr *)(((u_char *)ip_hdr + BYTES_PER_32BIT_WORD * ip_hdr->ip_hl));
+#if BYTE_ORDER == LITTLE_ENDIAN
+				bswapUDP(udp_hdr);
+#endif
+				//cout << udp_hdr->source << "\t" << udp_hdr->dest << endl;
+				if (udp_hdr->source == 2152 || udp_hdr->dest == 2152) {
+					gtp_hdr = (gtphdr *)((u_char *)udp_hdr + UDP_HDR_LEN);
+					bswapGTP(gtp_hdr);
+					if (gtp_hdr->ext > 0 || gtp_hdr->seq > 0 || gtp_hdr->pnb > 0)
+						ip_hdr = (ip *)((u_char *)gtp_hdr + 12);
+					else
+						ip_hdr = (ip *)((u_char *)gtp_hdr + 8);
+					if (packet_count < 100) {
+						cout << packet_count << ":\t";
+						cout << gtp_hdr->ver << "\t" << gtp_hdr->proto << "\t" 
+							<< gtp_hdr->res1 << "\t" << gtp_hdr->ext << "\t"
+							<< gtp_hdr->seq << "\t" << gtp_hdr->pnb << "\t"
+							<< gtp_hdr->msg << "\t" << gtp_hdr->len << "\t" 
+							<< gtp_hdr->teid << endl;
+					}
+					doIPProcess = true;
+				} else {
+					//cout << packet_count << "No GTP header!\t" 
+					//	<< udp_hdr->source << "\t" << udp_hdr->dest << endl;
+				}
+			} else {
+				cout << packet_count << "No IP header!\t" << *((u_short *)((u_char *)ip_hdr - 2)) << endl;
+			}
+		} else {
+			cout << packet_count << "No 802.1Q header!" << endl;
+		}
 	}
 
 	if (doIPProcess) {
@@ -140,7 +177,6 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		b1 = isClient(ip_hdr->ip_src);
 		b2 = isClient(ip_hdr->ip_dst);
 		if (packet_count < 100) {
-			cout << packet_count << ":\t";
 			printAddr(ip_hdr->ip_src, ip_hdr->ip_dst); 
 		}
 		if (isControlledServer(ip_hdr->ip_src) || isControlledServer(ip_hdr->ip_dst))

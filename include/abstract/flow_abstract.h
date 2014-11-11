@@ -11,7 +11,9 @@
 #include "framework/traffic_abstract.h"
 #include "framework/pcap.h"
 #include "proto/tcp_ip.h"
+#include "proto/gtp.h" 
 #include "proto/http.h"
+#include "proto/8021q.h"
 #include "abstract/tcp_flow.h"
 #include "common/basic.h"
 #include "common/stl.h"
@@ -53,6 +55,7 @@ class FlowAbstract: public TrafficAbstract{
 	ip *ip_hdr;
 	tcphdr *tcp_hdr;
 	udphdr *udp_hdr;
+	gtphdr *gtp_hdr;
 	bool b1, b2;
 	bool is_first;
 	uint64 start_time_sec;
@@ -118,6 +121,7 @@ public:
 	void bswapIP(struct ip* ip);
 	void bswapTCP(struct tcphdr* tcphdr);
 	void bswapUDP(struct udphdr* udphdr);
+	void bswapGTP(gtphdr* gtphdr);
 	//void bswapDNS(struct DNS_HEADER* dnshdr);
 
     string intToString(int x);
