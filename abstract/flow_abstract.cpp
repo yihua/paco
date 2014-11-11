@@ -15,6 +15,7 @@ FlowAbstract::FlowAbstract() {
 	traceType = "0";
 	flow=NULL;
 	userp=NULL;
+	packet_count = 0;
 }
 
 void FlowAbstract::configTraceType(string type) {
@@ -60,6 +61,13 @@ bool FlowAbstract::isControlledServer(in_addr addr) {
 	return false;
 }
 
+void FlowAbstract::printAddr(in_addr addr1, in_addr addr2) {
+	cout << ((addr1.s_addr & 0xFF000000) >> 24) << "." << ((addr1.s_addr & 0xFF0000) >> 16)
+		<< "." << ((addr1.s_addr & 0xFF00) >> 8) << "." << (addr1.s_addr & 0xFF)
+		<< " | " << ((addr2.s_addr & 0xFF000000) >> 24) << "." << ((addr2.s_addr & 0xFF0000) >> 16)
+                << "." << ((addr2.s_addr & 0xFF00) >> 8) << "." << (addr2.s_addr & 0xFF) << endl;
+}
+
 void FlowAbstract::bswapIP(struct ip* ip) {
 	ip->ip_len=bswap16(ip->ip_len);
 	ip->ip_id=bswap16(ip->ip_id);
@@ -85,6 +93,7 @@ void FlowAbstract::bswapUDP(struct udphdr* udphdr) {
 }
 
 void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
+	packet_count++;
 	/*
 	 * first packet ever. set the base time. maintain the time of the last packet.
 	 */
@@ -130,6 +139,10 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 
 		b1 = isClient(ip_hdr->ip_src);
 		b2 = isClient(ip_hdr->ip_dst);
+		if (packet_count < 100) {
+			cout << packet_count << ":\t";
+			printAddr(ip_hdr->ip_src, ip_hdr->ip_dst); 
+		}
 		if (isControlledServer(ip_hdr->ip_src) || isControlledServer(ip_hdr->ip_dst))
 			return;
 		int appIndex = -1;
@@ -154,8 +167,10 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 				ip_svr = ip_hdr->ip_src.s_addr;
 			}
 		} else if (b1 && b2) { //ignore 1, both are client IP
+			//cout << "ignore 1" << endl;
 			ignore_count1++;
 		} else { //ignore 2, none are client IP
+			//cout << "ignore 2" << endl;
 			ignore_count2++;
 		}
 
