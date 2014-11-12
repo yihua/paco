@@ -7,7 +7,7 @@
 
 #include "framework/result.h"
 
-#define MAX_BUF_SIZE 100000
+#define MAX_BUF_SIZE 1000000
 
 Result::Result() {
 	//result_files = new map<int, ofstream>();

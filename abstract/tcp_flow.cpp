@@ -39,8 +39,21 @@ TCPFlow::TCPFlow() {
     first_byte_time = 0;
     last_byte_time = 0;
 
-    total_down_payloads = 0;
-    total_up_payloads = 0;
+    last_payload_time = -1.0;
+    first_ul_pl_time = -1.0;
+    first_dl_pl_time = -1.0;
+    last_ul_pl_time = -1.0;
+    last_dl_pl_time = -1.0;
+    last_ul_ack_time = -1.0;
+    last_dl_ack_time = -1.0;
+
+
+    total_dl_payload = 0;
+    total_ul_payload = 0;
+    total_dl_payload_h = 0;
+    total_ul_payload_h = 0;
+    total_ul_whole = 0;
+    total_dl_whole = 0;
     bytes_in_fly = 0;
     max_bytes_in_fly = 0;
     packet_count = 0;
@@ -58,11 +71,15 @@ TCPFlow::TCPFlow() {
     content_type = "";
     user_agent = "";
     host = "";
+    content_length = "";
     total_content_length = 0;
 
     total_bw = 0;
     sample_count = 0;
 
+    last_pl_dir = -1;
+    dl_time = 0.0;
+    ul_time = 0.0;
     reset_seq(); //contains reset_ack
 }
 
@@ -459,8 +476,8 @@ void TCPFlow::print(u_short processed_flags) {
            processed_flags, //9
            has_ts_option_clt, //10
            has_ts_option_svr, //11
-           total_down_payloads, //12
-           total_up_payloads, //13
+           total_dl_payload, //12
+           total_ul_payload, //13
            idle_time, //14
            max_bytes_in_fly, //15
            syn_rtt, //16

@@ -148,13 +148,14 @@ void PacketAnalyzer::run() {
 		trace_count++;
 	}
 
-	// end
-	finalResult->flush();
 	//finalResult->closeAllResultFiles();
 	vector<int*>::iterator end_it;
 	for (end_it = mTrafficAbstract.begin(); end_it != mTrafficAbstract.end(); end_it++) {
-		((TrafficAbstract*)(*end_it))->runCleanUp();
+		((TrafficAbstract*)(*end_it))->runCleanUp(finalResult);
 	}
+
+	// end
+	finalResult->flush();
 }
 
 void PacketAnalyzer::runTrafficAbstract(Context& ctx, const struct pcap_pkthdr *header, const u_char *pkt_data) {

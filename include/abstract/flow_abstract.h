@@ -26,6 +26,8 @@
 
 #define CC_SAMPLE_PERIOD 100.0 // s
 
+#define MAX_PKT_INTERARRIVAL 2.0 // s
+
 //Usage: StringToNumber<Type> (String);
 template <typename T>
 T StringToNumber (const string &Text) {
@@ -65,6 +67,8 @@ class FlowAbstract: public TrafficAbstract{
 	u_int ip_clt, ip_svr;
 	u_short port_clt, port_svr;
 	u_short payload_len;
+	u_short tcp_whole_len;
+
 	double ts;
 	double last_prune_time;
 	double last_sample_time;
@@ -111,6 +115,7 @@ class FlowAbstract: public TrafficAbstract{
 	bool isClient(in_addr addr);
 	bool isControlledServer(in_addr addr);
 	void printAddr(in_addr addr1, in_addr addr2);
+	void writeTCPFlowStat(Result* result, TCPFlow* tcpflow);
 	string traceType;
 
 	int ETHER_HDR_LEN;
@@ -129,7 +134,7 @@ public:
 	void configTraceType(string type);
 	string getTraceType();
 	void runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
-	void runCleanUp();
+	void runCleanUp(Result* result);
 };
 
 #endif /* FLOW_ABSTRACT_H_ */

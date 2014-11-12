@@ -37,15 +37,23 @@ public:
     double last_throughput;
 
     double start_time;
+    double tmp_start_time;
     double first_byte_time; //first byte from server to client
     double last_byte_time; //last byte from server to client
-    double last_data_time; //last byte for both uplink and downlink
+    double last_payload_time; //last byte for both uplink and downlink
+    double first_ul_pl_time, first_dl_pl_time, last_ul_pl_time, last_dl_pl_time;
+    double last_dl_ack_time, last_ul_ack_time;
+
+    int last_pl_dir;
+
+    double dl_time, ul_time;
+
     double end_time;
     double idle_time;
     double syn_rtt, syn_ack_rtt;
     double idle_time_before_syn;
 
-    double last_data_ts;
+    double last_tcp_ts;
 
     short si; //circular seq index 0 - 19, point to the current last element
     short sx; // point to the current first index
@@ -59,8 +67,11 @@ public:
 
     bool has_ts_option_clt;
     bool has_ts_option_svr;
-    uint64 total_down_payloads;
-    uint64 total_up_payloads;
+
+    uint64 total_ul_payload, total_dl_payload;
+    uint64 total_ul_whole, total_dl_whole;
+    uint64 total_ul_payload_h, total_dl_payload_h;
+
     uint64 bytes_in_fly;
     uint64 max_bytes_in_fly;
     uint64 packet_count;
@@ -80,6 +91,7 @@ public:
     string content_type;
     string user_agent;
     string host;
+    string content_length;
     u_int total_content_length;
 
     string userID;
