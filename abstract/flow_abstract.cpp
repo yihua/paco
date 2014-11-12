@@ -216,9 +216,9 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 
 		b1 = isClient(ip_hdr->ip_src);
 		b2 = isClient(ip_hdr->ip_dst);
-		if (packet_count < 100) {
-			printAddr(ip_hdr->ip_src, ip_hdr->ip_dst); 
-		}
+		//if (packet_count < 100) {
+		//	printAddr(ip_hdr->ip_src, ip_hdr->ip_dst); 
+		//}
 		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV) && 
 			(isControlledServer(ip_hdr->ip_src) || isControlledServer(ip_hdr->ip_dst)))
 			return;
@@ -293,7 +293,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		
 		if (userp->is_sample && ts - userp->cc_start > 1.0) {
 			int conn_d = 0, conn_u = 0;
-			cout << "flows: " << userp->tcp_flows.size() << endl;
+			//cout << "flows: " << userp->tcp_flows.size() << endl;
 			for (flow_it = userp->tcp_flows.begin(); flow_it != userp->tcp_flows.end();) {
 				if ((flow_it->second->last_ul_pl_time >= userp->cc_start &&
 					flow_it->second->last_ul_pl_time < userp->cc_start + 1.0) || 
