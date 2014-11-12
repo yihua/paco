@@ -179,7 +179,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		if (packet_count < 100) {
 			printAddr(ip_hdr->ip_src, ip_hdr->ip_dst); 
 		}
-		if (isControlledServer(ip_hdr->ip_src) || isControlledServer(ip_hdr->ip_dst))
+		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV) && 
+			(isControlledServer(ip_hdr->ip_src) || isControlledServer(ip_hdr->ip_dst)))
 			return;
 		int appIndex = -1;
 		appIndex = *((u_short *)(pkt_data + 6)) & 0xFF;
@@ -209,6 +210,9 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			//cout << "ignore 2" << endl;
 			ignore_count2++;
 		}
+
+		if (users.size() % 10000 == 0)
+			cout << "users: " << users.size() << endl;
 
 		/*
 		 * differentiate different users
