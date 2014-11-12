@@ -97,7 +97,7 @@ void FlowAbstract::bswapGTP(gtphdr* gtphdr){
 	gtphdr->teid = bswap32(gtphdr->teid);
 }
 
-void FlowAbstract::writeTCPFlowStat(Result* result, TCPFlow* tcpflow) {
+void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
 	char buf[1000];
 	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d \
 		%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
@@ -121,6 +121,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, TCPFlow* tcpflow) {
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
 		tcpflow->total_content_length);
 	string s(buf);
+	cout << "write to string buf" << endl;
 	result->addResultToFile(2, s);
 }
 
@@ -309,8 +310,10 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 				}
 
 				if (ts - flow_it->second->last_tcp_ts > FLOW_MAX_IDLE_TIME) {
+					cout << packet_count << " write" << endl;
 					writeTCPFlowStat(result, flow_it->second);
 					userp->tcp_flows.erase(flow_it++);
+					cout << "write finish" << endl;
 				} else {
 					flow_it++;
 				}

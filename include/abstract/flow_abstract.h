@@ -115,7 +115,7 @@ class FlowAbstract: public TrafficAbstract{
 	bool isClient(in_addr addr);
 	bool isControlledServer(in_addr addr);
 	void printAddr(in_addr addr1, in_addr addr2);
-	void writeTCPFlowStat(Result* result, TCPFlow* tcpflow);
+	void writeTCPFlowStat(Result* result, const TCPFlow* tcpflow);
 	string traceType;
 
 	int ETHER_HDR_LEN;

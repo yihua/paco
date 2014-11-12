@@ -7,7 +7,7 @@
 
 #include "framework/result.h"
 
-#define MAX_BUF_SIZE 1000000
+#define MAX_BUF_SIZE 400000
 
 Result::Result() {
 	//result_files = new map<int, ofstream>();
@@ -32,6 +32,7 @@ void Result::addResultToFile(int tag, string result) {
 		o.close();
 		result_tmp[tag].clear();
 	}
+	cout << "********" << tag << "********* write to file" << endl;
 }
 
 void Result::flush() {
