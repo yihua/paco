@@ -312,6 +312,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 				if (ts - flow_it->second->last_tcp_ts > FLOW_MAX_IDLE_TIME) {
 					cout << packet_count << " write" << endl;
 					writeTCPFlowStat(result, flow_it->second);
+					cout << packet_count << " erase" << endl;
 					userp->tcp_flows.erase(flow_it++);
 					cout << "write finish" << endl;
 				} else {
