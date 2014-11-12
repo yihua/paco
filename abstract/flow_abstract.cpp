@@ -245,7 +245,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			userp->cc_start = ts;
 			userp->last_cc_sample_time = ts + CC_SAMPLE_PERIOD;
 		}
-
+		/*
 		if (userp->is_sample && ts - userp->cc_start > 1.0) {
 			int concurrency = 0;
 			cout << "flows: " << userp->tcp_flows.size() << endl;
@@ -270,7 +270,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 				userp->cc_start += 1.0;
 			if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_SPGW))
 				userp->is_sample = false;
-		}
+		}*/
 		/*
 		 * Layer 4 (Transport Layer) processing
 		 */
