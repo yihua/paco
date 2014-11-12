@@ -248,6 +248,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 
 		if (userp->is_sample && ts - userp->cc_start > 1.0) {
 			int concurrency = 0;
+			cout << "flows: " << userp->tcp_flows.size() << endl;
 			for (flow_it = userp->tcp_flows.begin(); flow_it != userp->tcp_flows.end();) {
 				if (flow_it->second->last_data_time > userp->cc_start &&
 					flow_it->second->last_data_time < userp->cc_start + 1.0) {
