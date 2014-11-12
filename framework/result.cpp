@@ -32,7 +32,7 @@ void Result::addResultToFile(int tag, string result) {
 		o.close();
 		result_tmp[tag].clear();
 	}
-	cout << "********" << tag << "********* write to file" << endl;
+	//cout << "********" << tag << "********* write to file" << endl;
 }
 
 void Result::flush() {
