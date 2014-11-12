@@ -639,7 +639,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 				break;
 			case IPPROTO_UDP:
 				udp_hdr = (udphdr *)((u_char *)ip_hdr + BYTES_PER_32BIT_WORD * ip_hdr->ip_hl);
-				bswapTCP(udp_hdr);
+				bswapUDP(udp_hdr);
 				if (udp_hdr->source == 53 || udp_hdr->dest == 53)
 					cout << "dns" << endl;
 				break;
