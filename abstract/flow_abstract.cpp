@@ -314,8 +314,9 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					cout << packet_count << " write" << endl;
 					writeTCPFlowStat(result, flow_it->second);
 					cout << packet_count << " erase" << endl;
-					userp->tcp_flows.erase(flow_it++);
+					//userp->tcp_flows.erase(flow_it++);
 					cout << "write finish" << endl;
+					flow_it++;
 				} else {
 					flow_it++;
 				}
