@@ -98,7 +98,7 @@ void FlowAbstract::bswapGTP(gtphdr* gtphdr){
 }
 
 void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
-	char buf[1000];
+	char buf[800];
 	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d \
 		%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
 		%lld %lld %lld %lld %.6lf %.6lf %lld %lld \
@@ -123,7 +123,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
 	string s(buf);
 	cout << "write to string buf" << endl;
 	result->addResultToFile(2, s);
-	cout << "write to string buf" << endl;
+	cout << "write to string buf end" << endl;
 }
 
 void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
