@@ -102,7 +102,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
 	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d \
 		%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
 		%lld %lld %lld %lld %.6lf %.6lf %lld %lld \
-		%d %s %s %s %s %d\n\0",
+		%d %s %s %s %s %d\n",
 		userp->userID.c_str(), userp->tcp_flows.size(),
 		tcpflow->flowIndex.c_str(), 
 		(tcpflow->clt_ip)>>24, (tcpflow->clt_ip)>>16 & 0xFF, (tcpflow->clt_ip)>>8 & 0xFF, (tcpflow->clt_ip) & 0xFF,
@@ -121,9 +121,11 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
 		tcpflow->total_content_length);
 	//cout << "write to string buf: " << string(buf).size() << endl;
-	if (string(buf).size() > 99999) {
-		cout << "write to string buf: " << string(buf).size() << endl;
-		printf("%s; %ld; %s; %d.%d.%d.%d:%d; %d.%d.%d.%d:%d; \
+	int tmp = string(buf).size();
+	if (tmp > 99999) {
+		cout << "write to string buf: " << tmp << endl;
+		char* buf2 = new char[tmp+2];
+		sprintf(buf2, "%s; %ld; %s; %d.%d.%d.%d:%d; %d.%d.%d.%d:%d; \
 		%.6lf; %.6lf; %.6lf; %.6lf; %.6lf; %.6lf; \
 		%lld; %lld; %lld; %lld; %.6lf; %.6lf; %lld; %lld; \
 		%d; %s; %s; %s; %s; %d\n",
@@ -144,6 +146,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
     	tcpflow->content_type.c_str(), tcpflow->user_agent.c_str(),
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
 		tcpflow->total_content_length);
+		result->addResultToFile(2, buf2);
 	}
 	else
 		result->addResultToFile(2, buf);
@@ -280,8 +283,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			ignore_count2++;
 		}
 
-		if (users.size() % 10000 == 0)
-			cout << "users: " << users.size() << endl;
+		//if (users.size() % 10000 == 0)
+		//	cout << "users: " << users.size() << endl;
 
 		/*
 		 * differentiate different users
