@@ -142,7 +142,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
     	tcpflow->content_type.c_str(), tcpflow->user_agent.c_str(),
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
 		tcpflow->total_content_length);
-	cout << "write to string buf" << endl;
+	cout << "write to string buf: " << string(buf).size() << endl;
 	result->addResultToFile(2, buf);
 	cout << "write to string buf end" << endl;
 }
