@@ -524,22 +524,24 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						//could be ACKs after RST/FIN packets
 						//could be packets for long lived TCP flow
 						//just ignore
-						userp->tcp_flows[flow_index] = new TCPFlow();
-						flow = userp->tcp_flows[flow_index];
+						if (payload_len > 0) {
+							userp->tcp_flows[flow_index] = new TCPFlow();
+							flow = userp->tcp_flows[flow_index];
 
-						flow->clt_ip = ip_clt; //init a flow
-						//flow_count++;
+							flow->clt_ip = ip_clt; //init a flow
+							//flow_count++;
 
-						//userp->tcp_flows[flow_index] = flow;
-						flow->tmp_start_time = ts;
-						flow->flowIndex = flow_index;
-						flow->idle_time_before_syn = ts - userp->last_packet_time;
-						flow->svr_ip = ip_svr;
-						flow->clt_port = port_clt;
-						flow->svr_port = port_svr;
-						flow->start_time = -1.0;
-						flow->end_time = ts;
-						flow->last_tcp_ts = ts;
+							//userp->tcp_flows[flow_index] = flow;
+							flow->tmp_start_time = ts;
+							flow->flowIndex = flow_index;
+							flow->idle_time_before_syn = ts - userp->last_packet_time;
+							flow->svr_ip = ip_svr;
+							flow->clt_port = port_clt;
+							flow->svr_port = port_svr;
+							flow->start_time = -1.0;
+							flow->end_time = ts;
+							flow->last_tcp_ts = ts;
+						}
 						//break;
 					}
 
