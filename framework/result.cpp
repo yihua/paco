@@ -24,14 +24,14 @@ void Result::addResultFile(int tag, string path) {
 
 void Result::addResultToFile(int tag, char *result) {
 	result_tmp[tag] += result;
-	if (result_tmp[tag].size() > MAX_BUF_SIZE) {
+	/*if (result_tmp[tag].size() > MAX_BUF_SIZE) {
 		ofstream o;
 		o.open(result_files[tag].c_str(), ios::out | ios::app);
 		o << result_tmp[tag];
 		o.close();
 		result_tmp[tag].clear();
 		cout << "********" << tag << "********* write to file" << endl;
-	}
+	}*/
 	//cout << "********" << tag << "********* write to file" << endl;
 }
 
