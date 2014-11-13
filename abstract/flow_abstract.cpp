@@ -98,7 +98,7 @@ void FlowAbstract::bswapGTP(gtphdr* gtphdr){
 }
 
 void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
-	char buf[10000];
+	char buf[100000];
 	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d \
 		%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
 		%lld %lld %lld %lld %.6lf %.6lf %lld %lld \
@@ -121,7 +121,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
 		tcpflow->total_content_length);
 	//cout << "write to string buf: " << string(buf).size() << endl;
-	if (string(buf).size() > 9999) {
+	if (string(buf).size() > 99999) {
 		cout << "write to string buf: " << string(buf).size() << endl;
 		printf("%s; %ld; %s; %d.%d.%d.%d:%d; %d.%d.%d.%d:%d; \
 		%.6lf; %.6lf; %.6lf; %.6lf; %.6lf; %.6lf; \
@@ -335,11 +335,11 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 				}
 
 				if (ts - flow_it->second->last_tcp_ts > FLOW_MAX_IDLE_TIME) {
-					cout << packet_count << " write" << endl;
+					//cout << packet_count << " write" << endl;
 					writeTCPFlowStat(result, flow_it->second);
-					cout << packet_count << " erase" << endl;
+					//cout << packet_count << " erase" << endl;
 					userp->tcp_flows.erase(flow_it++);
-					cout << "write finish" << endl;
+					//cout << "write finish" << endl;
 					//flow_it++;
 				} else {
 					flow_it++;
