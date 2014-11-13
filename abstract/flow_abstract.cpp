@@ -98,7 +98,7 @@ void FlowAbstract::bswapGTP(gtphdr* gtphdr){
 }
 
 void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
-	char buf[800];
+	char buf[2000];
 	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d \
 		%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
 		%lld %lld %lld %lld %.6lf %.6lf %lld %lld \
