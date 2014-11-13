@@ -98,7 +98,9 @@ void FlowAbstract::bswapGTP(gtphdr* gtphdr){
 }
 
 void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
-	char buf[1000000];
+	int size = tcpflow->content_type.size() + tcpflow->user_agent.size() +
+				tcpflow->host.size() + tcpflow->content_length.size() + 1000;
+	char buf[size];
 	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d \
 		%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
 		%lld %lld %lld %lld %.6lf %.6lf %.6lf %lld %lld \
@@ -121,6 +123,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
 		tcpflow->total_content_length);
 	//cout << "write to string buf: " << string(buf).size() << endl;
+	/*
 	int tmp = string(buf).size();
 	if (tmp > 999999) {
 		cout << "write to string buf: " << tmp << endl;
@@ -147,9 +150,9 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
 		tcpflow->total_content_length);
 		result->addResultToFile(2, buf2);
-	}
-	else
-		result->addResultToFile(2, buf);
+	}*/
+	
+	result->addResultToFile(2, buf);
 	//cout << "write to string buf end" << endl;
 }
 
