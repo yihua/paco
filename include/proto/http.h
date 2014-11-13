@@ -12,5 +12,6 @@
 
 string compress_user_agent(string ua);
 string process_content_type(string str);
+string trim_string(string str);
 
 #endif /* HTTP_H_ */

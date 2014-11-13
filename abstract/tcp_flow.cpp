@@ -80,6 +80,12 @@ TCPFlow::TCPFlow() {
     last_pl_dir = -1;
     dl_time = 0.0;
     ul_time = 0.0;
+    last_payload = 0;
+    last_payload_h = 0;
+    dl_rate_payload = 0;
+    ul_rate_payload = 0; 
+    dl_rate_payload_h = 0;
+    ul_rate_payload_h = 0;
     reset_seq(); //contains reset_ack
 }
 

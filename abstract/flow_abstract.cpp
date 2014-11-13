@@ -102,9 +102,10 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
 				tcpflow->host.size() + tcpflow->content_length.size() + 1000;
 	char buf[size];
 	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d \
-		%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
-		%lld %lld %lld %lld %.6lf %.6lf %.6lf %lld %lld \
-		%d %s %s %s %s %d\n",
+%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
+%lld %lld %lld %lld %.6lf %.6lf %.6lf %lld %lld \
+%lld %lld %lld %lld \
+%d %s %s %s %s %d\n",
 		userp->userID.c_str(), userp->tcp_flows.size(),
 		tcpflow->flowIndex.c_str(), 
 		(tcpflow->clt_ip)>>24, (tcpflow->clt_ip)>>16 & 0xFF, (tcpflow->clt_ip)>>8 & 0xFF, (tcpflow->clt_ip) & 0xFF,
@@ -118,6 +119,8 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
     	tcpflow->total_ul_whole, tcpflow->total_dl_whole,
     	tcpflow->ul_time, tcpflow->dl_time, tcpflow->last_tcp_ts,
     	tcpflow->total_ul_payload_h, tcpflow->total_dl_payload_h,
+    	tcpflow->ul_rate_payload, tcpflow->dl_rate_payload,
+    	tcpflow->ul_rate_payload_h, tcpflow->dl_rate_payload_h,
     	tcpflow->http_request_count,
     	tcpflow->content_type.c_str(), tcpflow->user_agent.c_str(),
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
@@ -324,20 +327,31 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		}
 		
 		if (userp->is_sample && ts - userp->cc_start > 1.0) {
-			int conn_d = 0, conn_u = 0;
+			int conn_d_data = 0, conn_d_ack = 0, conn_u_data = 0, conn_u_ack = 0, overlap = 0;
+			bool flag = false;
 			//cout << "flows: " << userp->tcp_flows.size() << endl;
 			for (flow_it = userp->tcp_flows.begin(); flow_it != userp->tcp_flows.end();) {
-				if ((flow_it->second->last_ul_pl_time >= userp->cc_start &&
-					flow_it->second->last_ul_pl_time < userp->cc_start + 1.0) || 
-					(flow_it->second->last_dl_ack_time >= userp->cc_start &&
-					flow_it->second->last_dl_ack_time < userp->cc_start + 1.0)) {
-					conn_u++;
+				flag = false;
+				if (flow_it->second->last_ul_pl_time >= userp->cc_start &&
+					flow_it->second->last_ul_pl_time < userp->cc_start + 1.0) {
+					conn_u_data++;
+					flag = true;
+				} else if (flow_it->second->last_dl_ack_time >= userp->cc_start &&
+					flow_it->second->last_dl_ack_time < userp->cc_start + 1.0) {
+					conn_d_ack++;
+					flag = true;
 				}
-				if ((flow_it->second->last_dl_pl_time >= userp->cc_start &&
-					flow_it->second->last_dl_pl_time < userp->cc_start + 1.0) || 
-					(flow_it->second->last_ul_ack_time >= userp->cc_start &&
-					flow_it->second->last_ul_ack_time < userp->cc_start + 1.0)) {
-					conn_d++;
+
+				if (flow_it->second->last_dl_pl_time >= userp->cc_start &&
+					flow_it->second->last_dl_pl_time < userp->cc_start + 1.0) {
+					conn_d_data++;
+					if (flag)
+						overlap++;
+				} else if (flow_it->second->last_ul_ack_time >= userp->cc_start &&
+					flow_it->second->last_ul_ack_time < userp->cc_start + 1.0) {
+					conn_u_ack++;
+					if (flag)
+						overlap++;
 				}
 
 				if (ts - flow_it->second->last_tcp_ts > FLOW_MAX_IDLE_TIME) {
@@ -351,9 +365,10 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					flow_it++;
 				}
 			}
-			if (conn_d + conn_u > 0) {
+			if (conn_d_data + conn_d_ack + conn_u_data + conn_u_ack > 0) {
 				char buf[100];
-				sprintf(buf, "%s %.6lf %d %d\n", userp->userID.c_str(), userp->cc_start, conn_d, conn_u);
+				sprintf(buf, "%s %.6lf %d %d %d %d %d\n", userp->userID.c_str(), userp->cc_start,
+						conn_d_data, conn_d_ack, conn_u_data, conn_u_ack, overlap);
 				result->addResultToFile(1, buf);
 			}
 			while (ts - userp->cc_start > 1.0)
@@ -557,6 +572,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						//flow->print((tcp_hdr->fin) | (tcp_hdr->rst));
 						flow->last_tcp_ts = ts;
 						//delete this flow
+						writeTCPFlowStat(result, flow);
 						userp->tcp_flows.erase(flow_index);
 						//client_flows.erase(flow_index);
 						break;
@@ -566,8 +582,11 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 								if (flow->last_pl_dir == 0 &&
 									ts - flow->last_payload_time < MAX_PKT_INTERARRIVAL) {
 									flow->ul_time += (ts - flow->last_payload_time);
+									flow->ul_rate_payload += flow->last_payload;
+									flow->ul_rate_payload_h += flow->last_payload_h;
 								}
 
+								flow->last_payload = payload_len;
 								flow->last_pl_dir = 0;
 								flow->last_payload_time = ts;
 								flow->total_ul_payload += payload_len;
@@ -605,8 +624,11 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 								if (flow->last_pl_dir == 1 &&
 									ts - flow->last_payload_time < MAX_PKT_INTERARRIVAL) {
 									flow->dl_time += (ts - flow->last_payload_time);
+									flow->dl_rate_payload += flow->last_payload;
+									flow->dl_rate_payload += flow->last_payload_h;
 								}
 
+								flow->last_payload = payload_len;
 								flow->last_pl_dir = 1;
 								flow->last_payload_time = ts;
 								flow->total_dl_payload += payload_len;
@@ -751,7 +773,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                                 start_pos = payload_str.find("Host: ");
                                 end_pos = payload_str.find("\r\n", start_pos);
                                 if (start_pos != string::npos && end_pos > start_pos + 6) {
-                                    flow->host += payload_str.substr(start_pos + 6, end_pos - start_pos - 6);
+                                    flow->host += trim_string(payload_str.substr(start_pos + 6, end_pos - start_pos - 6));
                                     flow->host += "|";
                                 }
                                 else
@@ -781,9 +803,9 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                                 start_pos = payload_str.find("Content-Length: ");
                                 end_pos = payload_str.find("\r\n", start_pos);
                                 if (start_pos != string::npos && end_pos > start_pos + 16) {
-                                	flow->content_length += payload_str.substr(start_pos + 16, end_pos - start_pos - 16);
+                                	flow->content_length += trim_string(payload_str.substr(start_pos + 16, end_pos - start_pos - 16));
                                 	flow->content_length += "|";
-                                    flow->total_content_length += StringToNumber<int>(payload_str.substr(start_pos + 16, end_pos - start_pos - 16));
+                                    flow->total_content_length += StringToNumber<int>(trim_string(payload_str.substr(start_pos + 16, end_pos - start_pos - 16)));
                                 } else {
                                 	flow->content_length += "|";
                                 }

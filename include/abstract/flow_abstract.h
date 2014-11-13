@@ -26,7 +26,7 @@
 
 #define CC_SAMPLE_PERIOD 100.0 // s
 
-#define MAX_PKT_INTERARRIVAL 2.0 // s
+#define MAX_PKT_INTERARRIVAL 1.0 // s
 
 //Usage: StringToNumber<Type> (String);
 template <typename T>

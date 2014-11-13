@@ -29,10 +29,8 @@ string process_content_type(string str) {
         if (*it >= 'A' && *it <= 'Z') {
             *it = (char)((*it) - 'A' + 'a'); //to lower case
         } else if (*it == ' ') {
-            it_tmp = it;
-            it++;
-            str.erase(it_tmp);
-            it--;
+            str.erase(it++);
+            continue;
         }
 
         if (*it == ';') {
@@ -44,3 +42,19 @@ string process_content_type(string str) {
     return str;
 }
 
+string trim_string(string str) {
+    string::iterator it;
+    for (it = str.begin() ; it < str.end() ; ) {
+        if (*it == '\r' || *it == '\n') {
+            str.erase(it, str.end());
+            break;
+        }
+
+        if (*it == ' ') {
+            str.erase(it++);
+            continue;
+        }
+        it++;
+    }
+    return str;
+}

@@ -44,6 +44,7 @@ public:
     double first_ul_pl_time, first_dl_pl_time, last_ul_pl_time, last_dl_pl_time;
     double last_dl_ack_time, last_ul_ack_time;
 
+    int last_payload, last_payload_h;
     int last_pl_dir;
 
     double dl_time, ul_time;
@@ -71,6 +72,7 @@ public:
     uint64 total_ul_payload, total_dl_payload;
     uint64 total_ul_whole, total_dl_whole;
     uint64 total_ul_payload_h, total_dl_payload_h;
+    uint64 dl_rate_payload, ul_rate_payload, dl_rate_payload_h, ul_rate_payload_h;
 
     uint64 bytes_in_fly;
     uint64 max_bytes_in_fly;
