@@ -22,7 +22,7 @@ void Result::addResultFile(int tag, string path) {
 	result_tmp[tag] = "";
 }
 
-void Result::addResultToFile(int tag, string result) {
+void Result::addResultToFile(int tag, char *result) {
 	result_tmp[tag] += result;
 	if (result_tmp[tag].size() > MAX_BUF_SIZE) {
 		ofstream o;

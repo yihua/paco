@@ -120,9 +120,8 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
     	tcpflow->content_type.c_str(), tcpflow->user_agent.c_str(),
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
 		tcpflow->total_content_length);
-	string s(buf);
 	cout << "write to string buf" << endl;
-	result->addResultToFile(2, s);
+	result->addResultToFile(2, buf);
 	cout << "write to string buf end" << endl;
 }
 
@@ -312,7 +311,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 
 				if (ts - flow_it->second->last_tcp_ts > FLOW_MAX_IDLE_TIME) {
 					cout << packet_count << " write" << endl;
-					// writeTCPFlowStat(result, flow_it->second);
+					writeTCPFlowStat(result, flow_it->second);
 					cout << packet_count << " erase" << endl;
 					userp->tcp_flows.erase(flow_it++);
 					cout << "write finish" << endl;
@@ -324,8 +323,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			if (conn_d + conn_u > 0) {
 				char buf[100];
 				sprintf(buf, "%s %.6lf %d %d\n", userp->userID.c_str(), userp->cc_start, conn_d, conn_u);
-				string s(buf);
-				result->addResultToFile(1, s);
+				result->addResultToFile(1, buf);
 			}
 			while (ts - userp->cc_start > 1.0)
 				userp->cc_start += 1.0;

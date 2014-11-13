@@ -19,7 +19,7 @@ private:
 public:
 	Result();
 	void addResultFile(int tag, string path);
-	void addResultToFile(int tag, string result);
+	void addResultToFile(int tag, char* result);
 	void flush();
 	void openAllResultFiles();
 	void closeAllResultFiles();
