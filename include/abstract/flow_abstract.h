@@ -24,7 +24,7 @@
 
 #define HTTP_THRESHOLD 1
 
-#define CC_SAMPLE_PERIOD 100.0 // s
+#define CC_SAMPLE_PERIOD 10.0 // s
 
 #define MAX_PKT_INTERARRIVAL 1.0 // s
 
