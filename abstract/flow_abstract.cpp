@@ -98,11 +98,11 @@ void FlowAbstract::bswapGTP(gtphdr* gtphdr){
 }
 
 void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
-	char buf[2000];
+	char buf[10000];
 	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d \
 		%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
 		%lld %lld %lld %lld %.6lf %.6lf %lld %lld \
-		%d %s %s %s %s %d\n",
+		%d %s %s %s %s %d\n\0",
 		userp->userID.c_str(), userp->tcp_flows.size(),
 		tcpflow->flowIndex.c_str(), 
 		(tcpflow->clt_ip)>>24, (tcpflow->clt_ip)>>16 & 0xFF, (tcpflow->clt_ip)>>8 & 0xFF, (tcpflow->clt_ip) & 0xFF,
@@ -120,7 +120,9 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
     	tcpflow->content_type.c_str(), tcpflow->user_agent.c_str(),
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
 		tcpflow->total_content_length);
-	if (packet_count == 4205544)
+	//cout << "write to string buf: " << string(buf).size() << endl;
+	if (string(buf).size() > 9999) {
+		cout << "write to string buf: " << string(buf).size() << endl;
 		printf("%s; %ld; %s; %d.%d.%d.%d:%d; %d.%d.%d.%d:%d; \
 		%.6lf; %.6lf; %.6lf; %.6lf; %.6lf; %.6lf; \
 		%lld; %lld; %lld; %lld; %.6lf; %.6lf; %lld; %lld; \
@@ -142,9 +144,10 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
     	tcpflow->content_type.c_str(), tcpflow->user_agent.c_str(),
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
 		tcpflow->total_content_length);
-	cout << "write to string buf: " << string(buf).size() << endl;
-	result->addResultToFile(2, buf);
-	cout << "write to string buf end" << endl;
+	}
+	else
+		result->addResultToFile(2, buf);
+	//cout << "write to string buf end" << endl;
 }
 
 void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
