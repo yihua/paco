@@ -121,10 +121,10 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
 		tcpflow->total_content_length);
 	if (packet_count == 4205544)
-		printf("%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d \
-		%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
-		%lld %lld %lld %lld %.6lf %.6lf %lld %lld \
-		%d %s %s %s %s %d\n",
+		printf("%s; %ld; %s; %d.%d.%d.%d:%d; %d.%d.%d.%d:%d; \
+		%.6lf; %.6lf; %.6lf; %.6lf; %.6lf; %.6lf; \
+		%lld; %lld; %lld; %lld; %.6lf; %.6lf; %lld; %lld; \
+		%d; %s; %s; %s; %s; %d\n",
 		userp->userID.c_str(), userp->tcp_flows.size(),
 		tcpflow->flowIndex.c_str(), 
 		(tcpflow->clt_ip)>>24, (tcpflow->clt_ip)>>16 & 0xFF, (tcpflow->clt_ip)>>8 & 0xFF, (tcpflow->clt_ip) & 0xFF,
