@@ -19,8 +19,7 @@ void Result::addResultFile(int tag, string path) {
 	ofstream o;
 	o.open(path.c_str());
 	o.close();
-	string s("");
-	result_tmp[tag] = s;
+	result_tmp[tag] = "";
 }
 
 void Result::addResultToFile(int tag, string result) {
