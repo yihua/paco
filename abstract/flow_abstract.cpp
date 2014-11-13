@@ -98,10 +98,10 @@ void FlowAbstract::bswapGTP(gtphdr* gtphdr){
 }
 
 void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
-	char buf[100000];
+	char buf[1000000];
 	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d \
 		%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
-		%lld %lld %lld %lld %.6lf %.6lf %lld %lld \
+		%lld %lld %lld %lld %.6lf %.6lf %.6lf %lld %lld \
 		%d %s %s %s %s %d\n",
 		userp->userID.c_str(), userp->tcp_flows.size(),
 		tcpflow->flowIndex.c_str(), 
@@ -114,7 +114,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
 		tcpflow->last_ul_pl_time, tcpflow->last_dl_pl_time,
 		tcpflow->total_ul_payload, tcpflow->total_dl_payload,
     	tcpflow->total_ul_whole, tcpflow->total_dl_whole,
-    	tcpflow->ul_time, tcpflow->dl_time,
+    	tcpflow->ul_time, tcpflow->dl_time, tcpflow->last_tcp_ts,
     	tcpflow->total_ul_payload_h, tcpflow->total_dl_payload_h,
     	tcpflow->http_request_count,
     	tcpflow->content_type.c_str(), tcpflow->user_agent.c_str(),
@@ -122,13 +122,13 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
 		tcpflow->total_content_length);
 	//cout << "write to string buf: " << string(buf).size() << endl;
 	int tmp = string(buf).size();
-	if (tmp > 99999) {
+	if (tmp > 999999) {
 		cout << "write to string buf: " << tmp << endl;
 		char* buf2 = new char[tmp+2];
-		sprintf(buf2, "%s; %ld; %s; %d.%d.%d.%d:%d; %d.%d.%d.%d:%d; \
-		%.6lf; %.6lf; %.6lf; %.6lf; %.6lf; %.6lf; \
-		%lld; %lld; %lld; %lld; %.6lf; %.6lf; %lld; %lld; \
-		%d; %s; %s; %s; %s; %d\n",
+		sprintf(buf2, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d \
+		%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
+		%lld %lld %lld %lld %.6lf %.6lf %.6lf %lld %lld \
+		%d %s %s %s %s %d\n",
 		userp->userID.c_str(), userp->tcp_flows.size(),
 		tcpflow->flowIndex.c_str(), 
 		(tcpflow->clt_ip)>>24, (tcpflow->clt_ip)>>16 & 0xFF, (tcpflow->clt_ip)>>8 & 0xFF, (tcpflow->clt_ip) & 0xFF,
@@ -140,7 +140,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
 		tcpflow->last_ul_pl_time, tcpflow->last_dl_pl_time,
 		tcpflow->total_ul_payload, tcpflow->total_dl_payload,
     	tcpflow->total_ul_whole, tcpflow->total_dl_whole,
-    	tcpflow->ul_time, tcpflow->dl_time,
+    	tcpflow->ul_time, tcpflow->dl_time, tcpflow->last_tcp_ts,
     	tcpflow->total_ul_payload_h, tcpflow->total_dl_payload_h,
     	tcpflow->http_request_count,
     	tcpflow->content_type.c_str(), tcpflow->user_agent.c_str(),
