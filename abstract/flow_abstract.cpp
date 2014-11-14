@@ -957,6 +957,8 @@ void FlowAbstract::runCleanUp(Result* result) {
 			writeTCPFlowStat(result, flow_it->second);
 			tmp_user->tcp_flows.erase(flow_it++);
 		}
+
+		writeSessionStat(result, tmp_user);
 		/*for (log_it = tmp_user->appTimeLog.begin();
 				log_it != tmp_user->appTimeLog.end(); log_it++) {
 			string f_name("tslog__");
