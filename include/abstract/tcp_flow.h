@@ -92,6 +92,7 @@ public:
 
     //HTTP analysis
     u_short http_request_count;
+    string first_content_type, first_user_agent, first_host; 
     string content_type;
     string user_agent;
     string host;

@@ -71,6 +71,9 @@ TCPFlow::TCPFlow() {
     content_type = "";
     user_agent = "";
     host = "";
+    first_content_type = "";
+    first_user_agent = "";
+    first_host = "";
     content_length = "";
     total_content_length = 0;
 

@@ -774,16 +774,38 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                                 start_pos = payload_str.find("User-Agent: ");
                                 end_pos = payload_str.find("\r\n", start_pos);
                                 if (start_pos != string::npos && end_pos > start_pos + 12) {
-                                    flow->user_agent += compress_user_agent(payload_str.substr(start_pos + 12, end_pos - start_pos - 12));
-                                    flow->user_agent += "|";
+                                	if (flow->first_user_agent.size() == 0) {
+                                		flow->first_user_agent = compress_user_agent(payload_str.substr(start_pos + 12, end_pos - start_pos - 12));
+                                    	flow->user_agent += flow->first_user_agent;
+                                    	flow->user_agent += "|";
+                                	} else {
+                                		if (compress_user_agent(payload_str.substr(start_pos + 12, end_pos - start_pos - 12)).compare(flow->first_user_agent) == 0) {
+                                			flow->user_agent += "*|";
+                                		} else {
+                                			flow->first_user_agent = compress_user_agent(payload_str.substr(start_pos + 12, end_pos - start_pos - 12));
+                                    		flow->user_agent += flow->first_user_agent;
+                                    		flow->user_agent += "|";
+                                		}
+                                	}
                                 } else
                                 	flow->user_agent += "|";
 
                                 start_pos = payload_str.find("Host: ");
                                 end_pos = payload_str.find("\r\n", start_pos);
                                 if (start_pos != string::npos && end_pos > start_pos + 6) {
-                                    flow->host += trim_string(payload_str.substr(start_pos + 6, end_pos - start_pos - 6));
-                                    flow->host += "|";
+                                	if (flow->first_host.size() == 0) {
+                                		flow->first_host = trim_string(payload_str.substr(start_pos + 6, end_pos - start_pos - 6));
+                                    	flow->host += flow->first_host;
+                                    	flow->host += "|";
+                                    } else {
+                                    	if (trim_string(payload_str.substr(start_pos + 6, end_pos - start_pos - 6).compare(flow->first_host) == 0) {
+                                    		flow->host += "*|";
+                                    	} else {
+                                    		flow->first_host = trim_string(payload_str.substr(start_pos + 6, end_pos - start_pos - 6));
+                                    		flow->host += flow->first_host;
+                                    		flow->host += "|";
+                                    	}
+                                    }
                                 }
                                 else
                                 	flow->host += "|";
@@ -803,8 +825,19 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                                 start_pos = payload_str.find("Content-Type: ");
                                 end_pos = payload_str.find("\r\n", start_pos);
                                 if (start_pos != string::npos && end_pos > start_pos + 14) {
-                                    flow->content_type += process_content_type(payload_str.substr(start_pos + 14, end_pos - start_pos - 14));
-                                    flow->content_type += "|"; 
+                                	if (flow->first_content_type.size() == 0 {
+                                		flow->first_content_type = process_content_type(payload_str.substr(start_pos + 14, end_pos - start_pos - 14));
+                                    	flow->content_type += flow->first_content_type;
+                                    	flow->content_type += "|"; 
+                                    } else {
+                                    	if (process_content_type(payload_str.substr(start_pos + 14, end_pos - start_pos - 14)).compare(flow->first_content_type) == 0) {
+                                    		flow->content_type += "*|"; 
+                                    	} else {
+                                    		flow->first_content_type = process_content_type(payload_str.substr(start_pos + 14, end_pos - start_pos - 14));
+                                    		flow->content_type += flow->first_content_type;
+                                    		flow->content_type += "|"; 
+                                    	}
+                                    }
                                 } else {
                                 	flow->content_type += "|";
                                 }
