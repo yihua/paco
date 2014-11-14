@@ -159,6 +159,28 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
 	//cout << "write to string buf end" << endl;
 }
 
+void FlowAbstract::writeSessionStat(Result* result, const User* user) {
+	char buf[200];
+	sprintf(buf, "%s %.6lf %.6lf %lld %lld %lld %lld %lld %lld\n",
+		user->userID.c_str(),
+		user->session_start_time, user->session_end_time,
+		user->session_ip_all, user->session_ip_payload,
+		user->session_tcp_all, user->session_tcp_payload,
+		user->session_udp_all, user->session_udp_payload);
+	result->addResultToFile(4, buf);
+}
+
+void FlowAbstract::writeRateStat(Result* result, const User* user) {
+	char buf[200];
+	sprintf(buf, "%s %.6lf %.6lf %lld %lld %lld %lld %lld %lld\n",
+		user->userID.c_str(),
+		user->bw_bin_start_time, user->bw_bin_start_time + USER_RATE_BIN,
+		user->bw_bin_ip_all, user->bw_bin_ip_payload,
+		user->bw_bin_tcp_all, user->bw_bin_tcp_payload,
+		user->bw_bin_udp_all, user->bw_bin_udp_payload);
+	result->addResultToFile(3, buf);
+}
+
 void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
 	packet_count++;
 	/*
@@ -289,6 +311,9 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			ignore_count2++;
 		}
 
+		ip_whole_len = ip_hdr->ip_len;
+		ip_payload_len = ip_hdr->ip_len - BYTES_PER_32BIT_WORD * (ip_hdr->ip_hl);
+
 		//if (users.size() % 10000 == 0)
 		//	cout << "users: " << users.size() << endl;
 
@@ -303,19 +328,43 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			userp->userID.assign(intToString((unsigned int)ip_clt));
 		}
 
-		if (userp->start_time == 0) {
+		if (userp->start_time < 0) {
 			//init
 			userp->start_time = ts;
 			
 			// for concurrency statistics
 			userp->cc_start = ts;
 			userp->last_cc_sample_time = ts;
+			userp->bw_bin_start_time = ts;
+			userp->session_start_time = ts;
+			userp->session_end_time = ts;
+
 			if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV) ||
 				ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_ENB))
 				userp->is_sample = true;
 			else
 				userp->is_sample = false;
-		}
+		} else {
+			// User throughput calculation (1s bin)
+			if (ts > userp->bw_bin_start_time + USER_RATE_BIN) {
+				writeRateStat(result, userp);
+				userp->bw_bin_start_time = ts;
+				userp->resetRateStat();
+			}
+
+			userp->bw_bin_ip_all += ip_whole_len;
+    		userp->bw_bin_ip_payload += ip_payload_len;
+
+			// User session process
+    		if (ts - userp->session_end_time > USER_SESSION_IDLE) {
+    			writeSessionStat(result, userp);
+    			userp->session_start_time = ts;
+    			userp->session_end_time = ts;
+    			userp->resetSessionStat();
+    		}
+    		userp->session_ip_all += ip_whole_len;
+    		userp->session_ip_payload += ip_payload_len;
+    	}
 
 		/* TCP Concurrency statistics*/
 		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_SPGW) &&
@@ -395,6 +444,11 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 
 				payload_len = ip_hdr->ip_len - BYTES_PER_32BIT_WORD * (ip_hdr->ip_hl + tcp_hdr->doff);
 				tcp_whole_len = ip_hdr->ip_len - BYTES_PER_32BIT_WORD * (ip_hdr->ip_hl);
+
+				userp->bw_bin_tcp_all += tcp_whole_len;
+				userp->bw_bin_tcp_payload += payload_len;
+				userp->session_tcp_all += tcp_whole_len;
+				userp->session_tcp_payload += payload_len;
 
 				opt_len = BYTES_PER_32BIT_WORD * tcp_hdr->doff - 20;
 				opt_ts = (u_int *)((u_char *)tcp_hdr + 20);
@@ -861,8 +915,13 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 
 				break;
 			case IPPROTO_UDP:
-				//udp_hdr = (udphdr *)((u_char *)ip_hdr + BYTES_PER_32BIT_WORD * ip_hdr->ip_hl);
-				//bswapUDP(udp_hdr);
+				udp_hdr = (udphdr *)((u_char *)ip_hdr + BYTES_PER_32BIT_WORD * ip_hdr->ip_hl);
+				bswapUDP(udp_hdr);
+
+				userp->bw_bin_udp_all += udp_hdr->len;
+				userp->bw_bin_udp_payload += (udp_hdr->len-UDP_HDR_LEN);
+				userp->session_udp_all += udp_hdr->len;
+				userp->session_udp_payload += (udp_hdr->len-UDP_HDR_LEN);
 				//if (udp_hdr->source == 53 || udp_hdr->dest == 53)
 				//	cout << "dns" << endl;
 				//break;
@@ -891,10 +950,9 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 }
 
 void FlowAbstract::runCleanUp(Result* result) {
-	map<string, user>::iterator user_it;
 	for (user_it = users.begin(); user_it != users.end(); user_it++) {
-		user *tmp_user = &(user_it->second);
-		map<string, string>::iterator log_it;
+		User *tmp_user = &(user_it->second);
+		//map<string, string>::iterator log_it;
 		for (flow_it = tmp_user->tcp_flows.begin(); flow_it != tmp_user->tcp_flows.end();) {
 			writeTCPFlowStat(result, flow_it->second);
 			tmp_user->tcp_flows.erase(flow_it++);

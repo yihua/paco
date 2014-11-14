@@ -66,8 +66,9 @@ class FlowAbstract: public TrafficAbstract{
 	u_int ip1, ip2;
 	u_int ip_clt, ip_svr;
 	u_short port_clt, port_svr;
-	u_short payload_len;
-	u_short tcp_whole_len;
+
+	u_short ip_whole_len, ip_payload_len;
+	u_short payload_len, tcp_whole_len;
 
 	double ts;
 	double last_prune_time;
@@ -89,8 +90,8 @@ class FlowAbstract: public TrafficAbstract{
 	map<string, pair<double, double> > big_flows;
 	map<string, pair<double, double> >::iterator big_flow_it_tmp;
 
-	map<string, user> users;
-	map<string, user>::iterator user_it;
+	map<string, User> users;
+	map<string, User>::iterator user_it;
 	map<string, TCPFlow*>::iterator flow_it;
 	map<string, TCPFlow*>::iterator flow_it_tmp;
 
@@ -103,7 +104,7 @@ class FlowAbstract: public TrafficAbstract{
 
 	bool is_target_flow;
 	TCPFlow *flow;
-	user *userp;
+	User *userp;
 	//client_bw *bw_udp = NULL;
 	//client_bw *bw_tcp = NULL;
 	char *payload;
@@ -116,6 +117,8 @@ class FlowAbstract: public TrafficAbstract{
 	bool isControlledServer(in_addr addr);
 	void printAddr(in_addr addr1, in_addr addr2);
 	void writeTCPFlowStat(Result* result, const TCPFlow* tcpflow);
+	void writeSessionStat(Result* result, const User* user);
+	void writeRateStat(Result* result, const User* user);
 	string traceType;
 
 	int ETHER_HDR_LEN;
