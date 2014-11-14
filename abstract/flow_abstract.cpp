@@ -825,7 +825,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                                 start_pos = payload_str.find("Content-Type: ");
                                 end_pos = payload_str.find("\r\n", start_pos);
                                 if (start_pos != string::npos && end_pos > start_pos + 14) {
-                                	if (flow->first_content_type.size() == 0 {
+                                	if (flow->first_content_type.size() == 0) {
                                 		flow->first_content_type = process_content_type(payload_str.substr(start_pos + 14, end_pos - start_pos - 14));
                                     	flow->content_type += flow->first_content_type;
                                     	flow->content_type += "|"; 
