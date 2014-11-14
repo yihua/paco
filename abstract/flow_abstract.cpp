@@ -798,7 +798,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                                     	flow->host += flow->first_host;
                                     	flow->host += "|";
                                     } else {
-                                    	if (trim_string(payload_str.substr(start_pos + 6, end_pos - start_pos - 6).compare(flow->first_host) == 0) {
+                                    	if (trim_string(payload_str.substr(start_pos + 6, end_pos - start_pos - 6)).compare(flow->first_host) == 0) {
                                     		flow->host += "*|";
                                     	} else {
                                     		flow->first_host = trim_string(payload_str.substr(start_pos + 6, end_pos - start_pos - 6));
