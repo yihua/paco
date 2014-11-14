@@ -9,7 +9,7 @@
 #include "framework/user.h"
 
 User::User() {
-	cout << "user init" << endl;
+	//cout << "user init" << endl;
     start_time = -1.0;
     last_packet_time = 0;
     tcp_flows.clear();
