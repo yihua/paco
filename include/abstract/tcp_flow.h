@@ -69,6 +69,8 @@ public:
     bool has_ts_option_clt;
     bool has_ts_option_svr;
 
+    bool flow_finish;
+
     uint64 total_ul_payload, total_dl_payload;
     uint64 total_ul_whole, total_dl_whole;
     uint64 total_ul_payload_h, total_dl_payload_h;

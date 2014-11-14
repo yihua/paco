@@ -86,6 +86,7 @@ TCPFlow::TCPFlow() {
     ul_rate_payload = 0; 
     dl_rate_payload_h = 0;
     ul_rate_payload_h = 0;
+    flow_finish = false;
     reset_seq(); //contains reset_ack
 }
 

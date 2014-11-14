@@ -354,13 +354,17 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						overlap++;
 				}
 
-				if (ts - flow_it->second->last_tcp_ts > FLOW_MAX_IDLE_TIME) {
+				if (userp->cc_start - flow_it->second->last_tcp_ts > FLOW_MAX_IDLE_TIME) {
 					//cout << packet_count << " write" << endl;
 					writeTCPFlowStat(result, flow_it->second);
 					//cout << packet_count << " erase" << endl;
 					userp->tcp_flows.erase(flow_it++);
 					//cout << "write finish" << endl;
 					//flow_it++;
+				} else if (userp->cc_start > flow_it->second->last_tcp_ts && 
+					flow_it->second->flow_finish) {
+					writeTCPFlowStat(result, flow_it->second);
+					userp->tcp_flows.erase(flow_it++);
 				} else {
 					flow_it++;
 				}
@@ -542,7 +546,9 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						//could be ACKs after RST/FIN packets
 						//could be packets for long lived TCP flow
 						//just ignore
-						if (payload_len > 0) {
+						if (payload_len > 0 && 
+							(tcp_hdr->fin) == 0 && 
+							(tcp_hdr->rst) == 0) {
 							userp->tcp_flows[flow_index] = new TCPFlow();
 							flow = userp->tcp_flows[flow_index];
 
@@ -559,24 +565,28 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 							flow->start_time = -1.0;
 							flow->end_time = ts;
 							flow->last_tcp_ts = ts;
+						} else {
+							break;
 						}
-						//break;
 					}
 
 					//flow = &client_flows[flow_index];
 					flow->end_time = ts;
 					flow->packet_count++; //should be before the SYN-RTT analysis
 
+					flow->last_tcp_ts = ts;
+
 					//if a terminate flow packet is here, terminate flow and output flow statistics
 					if ((tcp_hdr->fin) != 0 || (tcp_hdr->rst) != 0) {
 						//flow->print((tcp_hdr->fin) | (tcp_hdr->rst));
 						flow->last_tcp_ts = ts;
+						flow->flow_finish = true;
 						//delete this flow
-						writeTCPFlowStat(result, flow);
-						userp->tcp_flows.erase(flow_index);
+						//writeTCPFlowStat(result, flow);
+						//userp->tcp_flows.erase(flow_index);
 						//client_flows.erase(flow_index);
 						break;
-					} else { // all packets of this flow goes to here except for the FIN and RST packets
+					} else if (!(flow->flow_finish)) { // all packets of this flow goes to here except for the FIN and RST packets
 						if (b1 && !b2) { // uplink:0
 							if (payload_len > 0) {
 								if (flow->last_pl_dir == 0 &&
@@ -678,7 +688,6 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						flow->update_ack_x(tcp_hdr->ack_seq, payload_len, ts);
 					}*/
 
-					flow->last_tcp_ts = ts;
 					if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)) {
 						userp->appTime[appName] = ts;
 					}
