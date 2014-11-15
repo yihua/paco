@@ -18,38 +18,75 @@ User::User() {
     http_req_stat->str("");
     http_req_stat_size = 0;
 
-    bw_bin_start_time = -1.0;
-    bw_bin_ip_all = 0;
-    bw_bin_ip_payload = 0; 
-    bw_bin_tcp_all = 0;
-    bw_bin_tcp_payload = 0;
-    bw_bin_udp_all = 0;
-    bw_bin_udp_payload = 0;
+    bw_bin_ul_start_time = -1.0;
+    bw_bin_ul_end_time = -1.0;
+    bw_bin_ul_ip_all = 0;
+    bw_bin_ul_ip_payload = 0; 
+    bw_bin_ul_tcp_all = 0;
+    bw_bin_ul_tcp_payload = 0;
+    bw_bin_ul_udp_all = 0;
+    bw_bin_ul_udp_payload = 0;
+
+    bw_bin_dl_start_time = -1.0;
+    bw_bin_dl_end_time = -1.0;
+    bw_bin_dl_ip_all = 0;
+    bw_bin_dl_ip_payload = 0; 
+    bw_bin_dl_tcp_all = 0;
+    bw_bin_dl_tcp_payload = 0;
+    bw_bin_dl_udp_all = 0;
+    bw_bin_dl_udp_payload = 0;
 
     session_start_time = -1.0;
 	session_end_time = -1.0;
-    session_ip_all = 0;
-    session_ip_payload = 0; 
-    session_tcp_all = 0;
-    session_tcp_payload = 0;
-    session_udp_all = 0;
-    session_udp_payload = 0;
+    session_ul_ip_all = 0;
+    session_ul_ip_payload = 0; 
+    session_ul_tcp_all = 0;
+    session_ul_tcp_payload = 0;
+    session_ul_udp_all = 0;
+    session_ul_udp_payload = 0;
+
+    session_dl_ip_all = 0;
+    session_dl_ip_payload = 0; 
+    session_dl_tcp_all = 0;
+    session_dl_tcp_payload = 0;
+    session_dl_udp_all = 0;
+    session_dl_udp_payload = 0;
 }
 
-void User::resetRateStat() {
-    bw_bin_ip_all = 0;
-    bw_bin_ip_payload = 0; 
-    bw_bin_tcp_all = 0;
-    bw_bin_tcp_payload = 0;
-    bw_bin_udp_all = 0;
-    bw_bin_udp_payload = 0;
+void User::resetRateStat(int dir) {
+	if (dir == 0) {
+		bw_bin_ul_ip_all = 0;
+	    bw_bin_ul_ip_payload = 0; 
+	    bw_bin_ul_tcp_all = 0;
+	    bw_bin_ul_tcp_payload = 0;
+	    bw_bin_ul_udp_all = 0;
+	    bw_bin_ul_udp_payload = 0;
+	    return;
+	}
+
+	if (dir == 1) {
+	    bw_bin_dl_ip_all = 0;
+	    bw_bin_dl_ip_payload = 0; 
+	    bw_bin_dl_tcp_all = 0;
+	    bw_bin_dl_tcp_payload = 0;
+	    bw_bin_dl_udp_all = 0;
+	    bw_bin_dl_udp_payload = 0;
+	    return;
+    }
 }
 
 void User::resetSessionStat() {
-    session_ip_all = 0;
-    session_ip_payload = 0; 
-    session_tcp_all = 0;
-    session_tcp_payload = 0;
-    session_udp_all = 0;
-    session_udp_payload = 0;
+    session_ul_ip_all = 0;
+    session_ul_ip_payload = 0; 
+    session_ul_tcp_all = 0;
+    session_ul_tcp_payload = 0;
+    session_ul_udp_all = 0;
+    session_ul_udp_payload = 0;
+
+    session_dl_ip_all = 0;
+    session_dl_ip_payload = 0; 
+    session_dl_tcp_all = 0;
+    session_dl_tcp_payload = 0;
+    session_dl_udp_all = 0;
+    session_dl_udp_payload = 0;
 }

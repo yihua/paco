@@ -161,24 +161,39 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
 
 void FlowAbstract::writeSessionStat(Result* result, const User* user) {
 	char buf[200];
-	sprintf(buf, "%s %.6lf %.6lf %lld %lld %lld %lld %lld %lld\n",
+	sprintf(buf, "%s %.6lf %.6lf %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld\n",
 		user->userID.c_str(),
 		user->session_start_time, user->session_end_time,
-		user->session_ip_all, user->session_ip_payload,
-		user->session_tcp_all, user->session_tcp_payload,
-		user->session_udp_all, user->session_udp_payload);
+		user->session_ul_ip_all, user->session_ul_ip_payload,
+		user->session_ul_tcp_all, user->session_ul_tcp_payload,
+		user->session_ul_udp_all, user->session_ul_udp_payload,
+		user->session_dl_ip_all, user->session_dl_ip_payload,
+		user->session_dl_tcp_all, user->session_dl_tcp_payload,
+		user->session_dl_udp_all, user->session_dl_udp_payload);
 	result->addResultToFile(4, buf);
 }
 
-void FlowAbstract::writeRateStat(Result* result, const User* user) {
+void FlowAbstract::writeRateStat(Result* result, const User* user, int dir) {
 	char buf[200];
-	sprintf(buf, "%s %.6lf %.6lf %lld %lld %lld %lld %lld %lld\n",
-		user->userID.c_str(),
-		user->bw_bin_start_time, user->bw_bin_start_time + USER_RATE_BIN,
-		user->bw_bin_ip_all, user->bw_bin_ip_payload,
-		user->bw_bin_tcp_all, user->bw_bin_tcp_payload,
-		user->bw_bin_udp_all, user->bw_bin_udp_payload);
-	result->addResultToFile(3, buf);
+	if (dir == 0) { // uplink
+		sprintf(buf, "ul %s %.6lf %.6lf %.6lf %lld %lld %lld %lld %lld %lld\n",
+			user->userID.c_str(),
+			user->bw_bin_ul_start_time, user->bw_bin_ul_start_time + USER_RATE_BIN,
+			userp->bw_bin_ul_end_time,
+			user->bw_bin_ul_ip_all, user->bw_bin_ul_ip_payload,
+			user->bw_bin_ul_tcp_all, user->bw_bin_ul_tcp_payload,
+			user->bw_bin_ul_udp_all, user->bw_bin_ul_udp_payload);
+		result->addResultToFile(3, buf);
+	} else if (dir == 1) { // downlink
+		sprintf(buf, "dl %s %.6lf %.6lf %.6lf %lld %lld %lld %lld %lld %lld\n",
+			user->userID.c_str(),
+			user->bw_bin_dl_start_time, user->bw_bin_dl_start_time + USER_RATE_BIN,
+			userp->bw_bin_dl_end_time,
+			user->bw_bin_dl_ip_all, user->bw_bin_dl_ip_payload,
+			user->bw_bin_dl_tcp_all, user->bw_bin_dl_tcp_payload,
+			user->bw_bin_dl_udp_all, user->bw_bin_dl_udp_payload);
+		result->addResultToFile(3, buf);
+	}
 }
 
 void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
@@ -335,7 +350,6 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			// for concurrency statistics
 			userp->cc_start = ts;
 			userp->last_cc_sample_time = ts;
-			userp->bw_bin_start_time = ts;
 			userp->session_start_time = ts;
 			userp->session_end_time = ts;
 
@@ -345,25 +359,20 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			else
 				userp->is_sample = false;
 		} else {
-			// User throughput calculation (1s bin)
-			if (ts > userp->bw_bin_start_time + USER_RATE_BIN) {
-				writeRateStat(result, userp);
-				userp->bw_bin_start_time = ts;
-				userp->resetRateStat();
-			}
-
-			userp->bw_bin_ip_all += ip_whole_len;
-    		userp->bw_bin_ip_payload += ip_payload_len;
-
 			// User session process
     		if (ts - userp->session_end_time > USER_SESSION_IDLE) {
     			writeSessionStat(result, userp);
     			userp->session_start_time = ts;
-    			userp->session_end_time = ts;
     			userp->resetSessionStat();
     		}
-    		userp->session_ip_all += ip_whole_len;
-    		userp->session_ip_payload += ip_payload_len;
+    		userp->session_end_time = ts;
+    		if (b1 && !b2) {//up
+    			userp->session_ul_ip_all += ip_whole_len;
+    			userp->session_ul_ip_payload += ip_payload_len;
+    		} else if (!b1 && b2) {//down
+				userp->session_dl_ip_all += ip_whole_len;
+    			userp->session_dl_ip_payload += ip_payload_len;
+    		}
     	}
 
 		/* TCP Concurrency statistics*/
@@ -445,10 +454,46 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 				payload_len = ip_hdr->ip_len - BYTES_PER_32BIT_WORD * (ip_hdr->ip_hl + tcp_hdr->doff);
 				tcp_whole_len = ip_hdr->ip_len - BYTES_PER_32BIT_WORD * (ip_hdr->ip_hl);
 
-				userp->bw_bin_tcp_all += tcp_whole_len;
-				userp->bw_bin_tcp_payload += payload_len;
-				userp->session_tcp_all += tcp_whole_len;
-				userp->session_tcp_payload += payload_len;
+				// User throughput calculation (1s bin)
+				if (b1 && !b2 && payload_len > 0) { // uplink
+					userp->session_ul_tcp_all += tcp_whole_len;
+					userp->session_ul_tcp_payload += payload_len;
+
+					if (userp->bw_bin_ul_start_time < 0) {
+						userp->bw_bin_ul_start_time = ts;
+						userp->bw_bin_ul_end_time = ts;
+					} else {
+						if (ts > userp->bw_bin_ul_start_time + USER_RATE_BIN) {
+							writeRateStat(result, userp, 0);
+							userp->bw_bin_ul_start_time = ts;
+							userp->resetRateStat(0);
+						}
+						userp->bw_bin_ul_end_time = ts;
+						userp->bw_bin_ul_ip_all += ip_whole_len;
+			    		userp->bw_bin_ul_ip_payload += ip_payload_len;
+			    		userp->bw_bin_ul_tcp_all += tcp_whole_len;
+						userp->bw_bin_ul_tcp_payload += payload_len;
+			    	}
+			    } else if (!b1 && b2 && payload_len > 0) { //downlink
+			    	userp->session_dl_tcp_all += tcp_whole_len;
+					userp->session_dl_tcp_payload += payload_len;
+
+					if (userp->bw_bin_dl_start_time < 0) {
+						userp->bw_bin_dl_start_time = ts;
+						userp->bw_bin_dl_end_time = ts;
+					} else {
+						if (ts > userp->bw_bin_dl_start_time + USER_RATE_BIN) {
+							writeRateStat(result, userp, 1);
+							userp->bw_bin_dl_start_time = ts;
+							userp->resetRateStat(1);
+						}
+						userp->bw_bin_dl_end_time = ts;
+						userp->bw_bin_dl_ip_all += ip_whole_len;
+			    		userp->bw_bin_dl_ip_payload += ip_payload_len;
+			    		userp->bw_bin_dl_tcp_all += tcp_whole_len;
+						userp->bw_bin_dl_tcp_payload += payload_len;
+			    	}
+			    }
 
 				opt_len = BYTES_PER_32BIT_WORD * tcp_hdr->doff - 20;
 				opt_ts = (u_int *)((u_char *)tcp_hdr + 20);
@@ -918,10 +963,47 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 				udp_hdr = (udphdr *)((u_char *)ip_hdr + BYTES_PER_32BIT_WORD * ip_hdr->ip_hl);
 				bswapUDP(udp_hdr);
 
-				userp->bw_bin_udp_all += udp_hdr->len;
-				userp->bw_bin_udp_payload += (udp_hdr->len-UDP_HDR_LEN);
-				userp->session_udp_all += udp_hdr->len;
-				userp->session_udp_payload += (udp_hdr->len-UDP_HDR_LEN);
+				// User throughput calculation (1s bin)
+				if (b1 && !b2 && payload_len > 0) { // uplink
+					userp->session_ul_udp_all += udp_hdr->len;
+					userp->session_ul_udp_payload += (udp_hdr->len-UDP_HDR_LEN);
+
+					if (userp->bw_bin_ul_start_time < 0) {
+						userp->bw_bin_ul_start_time = ts;
+						userp->bw_bin_ul_end_time = ts;
+					} else {
+						if (ts > userp->bw_bin_ul_start_time + USER_RATE_BIN) {
+							writeRateStat(result, userp, 0);
+							userp->bw_bin_ul_start_time = ts;
+							userp->resetRateStat(0);
+						}
+						userp->bw_bin_ul_end_time = ts;
+						userp->bw_bin_ul_ip_all += ip_whole_len;
+			    		userp->bw_bin_ul_ip_payload += ip_payload_len;
+			    		userp->bw_bin_ul_udp_all += udp_hdr->len;
+						userp->bw_bin_ul_udp_payload += (udp_hdr->len-UDP_HDR_LEN);
+			    	}
+			    } else if (!b1 && b2 && payload_len > 0) { //downlink
+			    	userp->session_dl_udp_all += udp_hdr->len;
+					userp->session_dl_udp_payload += (udp_hdr->len-UDP_HDR_LEN);
+
+					if (userp->bw_bin_dl_start_time < 0) {
+						userp->bw_bin_dl_start_time = ts;
+						userp->bw_bin_dl_end_time = ts;
+					} else {
+						if (ts > userp->bw_bin_dl_start_time + USER_RATE_BIN) {
+							writeRateStat(result, userp, 1);
+							userp->bw_bin_dl_start_time = ts;
+							userp->resetRateStat(1);
+						}
+						userp->bw_bin_dl_end_time = ts;
+						userp->bw_bin_dl_ip_all += ip_whole_len;
+			    		userp->bw_bin_dl_ip_payload += ip_payload_len;
+			    		userp->bw_bin_ul_udp_all += udp_hdr->len;
+						userp->bw_bin_ul_udp_payload += (udp_hdr->len-UDP_HDR_LEN);
+			    	}
+			    }
+				
 				//if (udp_hdr->source == 53 || udp_hdr->dest == 53)
 				//	cout << "dns" << endl;
 				//break;

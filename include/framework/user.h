@@ -30,13 +30,20 @@ public:
     double cc_start;
     double last_cc_sample_time;
 
-    double bw_bin_start_time;
-    uint64 bw_bin_ip_all, bw_bin_ip_payload; 
-    uint64 bw_bin_tcp_all, bw_bin_tcp_payload, bw_bin_udp_all, bw_bin_udp_payload;
+    double bw_bin_ul_start_time, bw_bin_ul_end_time;
+    uint64 bw_bin_ul_ip_all, bw_bin_ul_ip_payload; 
+    uint64 bw_bin_ul_tcp_all, bw_bin_ul_tcp_payload, bw_bin_ul_udp_all, bw_bin_ul_udp_payload;
+
+    double bw_bin_dl_start_time, bw_bin_dl_end_time;
+    uint64 bw_bin_dl_ip_all, bw_bin_dl_ip_payload; 
+    uint64 bw_bin_dl_tcp_all, bw_bin_dl_tcp_payload, bw_bin_dl_udp_all, bw_bin_dl_udp_payload;
 
     double session_start_time, session_end_time;
-    uint64 session_ip_all, session_ip_payload; 
-    uint64 session_tcp_all, session_tcp_payload, session_udp_all, session_udp_payload;    
+    uint64 session_ul_ip_all, session_ul_ip_payload; 
+    uint64 session_ul_tcp_all, session_ul_tcp_payload, session_ul_udp_all, session_ul_udp_payload;
+
+    uint64 session_dl_ip_all, session_dl_ip_payload; 
+    uint64 session_dl_tcp_all, session_dl_tcp_payload, session_dl_udp_all, session_dl_udp_payload;    
 
     bool is_sample;
 
@@ -49,7 +56,7 @@ public:
     int http_req_stat_size;
 
     User();
-    void resetRateStat();
+    void resetRateStat(int dir);
     void resetSessionStat();
 };
 

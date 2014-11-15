@@ -118,7 +118,7 @@ class FlowAbstract: public TrafficAbstract{
 	void printAddr(in_addr addr1, in_addr addr2);
 	void writeTCPFlowStat(Result* result, const TCPFlow* tcpflow);
 	void writeSessionStat(Result* result, const User* user);
-	void writeRateStat(Result* result, const User* user);
+	void writeRateStat(Result* result, const User* user, int dir);
 	string traceType;
 
 	int ETHER_HDR_LEN;
