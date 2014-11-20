@@ -138,6 +138,11 @@ void PacketAnalyzer::run() {
 			mTraceCtx.setEtherLen(16);
 		} else {
 			mTraceCtx.setEtherLen(14);
+			if (mConfigParam.isTraceType(CONFIG_PARAM_TRACE_DEV)) {
+				trace_count++;
+				cout << "Skip Wi-Fi trace: " << *it << endl;
+				continue;
+			}
 		}
 
 		//cout << "Pcap trace Ethernet header length: " << mTraceCtx.getEtherLen() << endl;
