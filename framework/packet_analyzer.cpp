@@ -140,7 +140,7 @@ void PacketAnalyzer::run() {
 			mTraceCtx.setEtherLen(14);
 			if (mConfigParam.isTraceType(CONFIG_PARAM_TRACE_DEV)) {
 				trace_count++;
-				cout << "Skip Wi-Fi trace: " << *it << endl;
+				//cout << "Skip Wi-Fi trace: " << *it << endl;
 				continue;
 			}
 		}
