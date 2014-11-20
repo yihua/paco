@@ -141,6 +141,7 @@ void PacketAnalyzer::run() {
 			if (mConfigParam.isTraceType(CONFIG_PARAM_TRACE_DEV)) {
 				trace_count++;
 				//cout << "Skip Wi-Fi trace: " << *it << endl;
+				pcap_close(trace_file);
 				continue;
 			}
 		}
