@@ -104,11 +104,11 @@ public:
     void reset_seq();
     void reset_ack();
 
-    //functions for BW estimation
+    //functions for BW estimation - appear to be unused
     void update_seq(u_int seq, u_short payload_len, double ts);
     void update_ack(u_int ack, u_short payload_len, double ts, double _actual_ts);
 
-    //functions for RTT analysis
+    //functions for RTT analysis - appear to be unused
     void update_seq_x(u_int seq, u_short payload_len, double ts);
     void update_ack_x(u_int ack, u_short payload_len, double _actual_ts);
 

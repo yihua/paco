@@ -16,6 +16,11 @@
 #include "framework/result.h"
 #include "param/config_param.h"
 
+/*
+ * Pass packet data loaded by 
+ * Subclassed by FlowAbstract 
+ */
+
 class TrafficAbstract {
 private:
 //use int * since error "error: cannot allocate an object of abstract type ‘MeasureTask’"

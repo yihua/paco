@@ -113,10 +113,15 @@ class FlowAbstract: public TrafficAbstract{
 	size_t end_pos;
 	u_int jump;
 
+    //Hard coded client and server ranges from IP
 	bool isClient(in_addr addr);
+    //Also find hard-coded server address: umich block
 	bool isControlledServer(in_addr addr);
 	void printAddr(in_addr addr1, in_addr addr2);
+
+    // Write complete data on TCP flow to a file
 	void writeTCPFlowStat(Result* result, const TCPFlow* tcpflow);
+    // Summary of user session: write user struct to file
 	void writeSessionStat(Result* result, const User* user);
 	void writeRateStat(Result* result, const User* user, int dir);
 	string traceType;
@@ -126,6 +131,7 @@ class FlowAbstract: public TrafficAbstract{
 public:
 	FlowAbstract();
 
+    /*Deal with endianness?*/
 	void bswapIP(struct ip* ip);
 	void bswapTCP(struct tcphdr* tcphdr);
 	void bswapUDP(struct udphdr* udphdr);
@@ -136,7 +142,15 @@ public:
 
 	void configTraceType(string type);
 	string getTraceType();
+
+    /*
+     * Extracts needed data from packet and does the bulk of the analysis
+     */
 	void runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data);
+
+    /*
+     * Write results to a file: both data from the trace and the user 
+     */
 	void runCleanUp(Result* result);
 };
 
