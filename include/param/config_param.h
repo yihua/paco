@@ -22,7 +22,7 @@
 #define CONFIG_PARAM_CONTEXT_NO "0"
 #define CONFIG_PARAM_CONTEXT_YES "1"
 
-#define CONFIG_PARAM_TRACE_LIST "trace_list"
+#define CONFIG_PARAM_TRACE_LIST "traceList"
 
 #define CONFIG_PARAM_MEASUREMENT "measurement_task"
 #define CONFIG_PARAM_MEASUREMENT_TCPFLOW "0"
