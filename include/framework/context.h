@@ -25,6 +25,10 @@ private:
 
 	double getTimestamp(string s);
 	string getAppName(string s);
+
+    /* Appears to be whether the app occupies the foreground 
+     * physically?
+     */
 	bool isImportanceFg(string s);
 	bool isProcessLine(string s);
 	bool parseScreenOn(string s);
@@ -36,9 +40,13 @@ public:
     vector<string> getAppNameMap();
     void addAppName(string appname);
     void clearAppNameMap();
+
+    // Get the app in the specified position on the map
     string getAppNameByIndex(int index);
     string getUserID();
     void updateContext(double ts);
+
+    // Given the filename, load the screen events
     void updateFile(string s);
     bool isScreenOn();
     bool isForeground(string appName);

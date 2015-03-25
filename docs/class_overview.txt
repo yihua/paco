@@ -1,0 +1,83 @@
+Right now appears to only process TCP flows.
+
+Main flow:
+
+main -> packet_analyzer.run -> flow_abstract.runMeasureTask
+
+---------------
+Abstract:
+---------------
+Bulk of the work seems to happen here
+
+flow_abstract
+    the runMeasureTask is what packetAnalyzer uses to analyze packets
+    Most of the statistics gathering happens here
+
+tcp_flow
+    Also contains http analysis
+    Most actual analysis here is referred to in flow_abstract but
+    commented out
+    
+
+---------------
+Common:
+---------------
+output:
+    contains a single function for writing a string, timestamp, and its length to a file
+
+param:
+    A wrapper for a map of strings, with put and get implemented
+
+
+---------------
+Framework:
+---------------
+context:
+    User context:
+        list of app names, user id, whether the screen is on and for how long, foreground apps      
+
+measure_task:
+    Doesn't appear to be implemented/in use?
+
+packet_analyzer:
+    The bulk of the work seems to happen here (particularly in the "run"
+    function), where files are loaded, processed, and passed off to the
+    subclasses for analysis.
+    But ultimately 
+    
+
+result:
+    For storing values to file
+
+traffic_abstract:
+    Subclassed by FlowAbstract
+    Packet analyzer uses this to process flows
+
+user:
+    Data on a "session"
+    Used in flow_abstract
+
+---------------
+Param:
+---------------
+
+config_param:
+    Location of trace list, other config data, etc
+    Stored in a map defined in common/param.cpp
+
+---------------
+Proto:
+---------------
+
+HTTP:
+    Utility functions for analyzing HTTP:
+    largely to compress or format (e.g. make lowercase)
+
+TCP_IP:
+    empty file
+
+---------------
+Task:
+---------------
+RTT_TASK:
+    appears unused
