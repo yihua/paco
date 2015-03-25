@@ -6,7 +6,7 @@ import glob
 
 root_dir = "/nfs/beirut1/userstudy/2nd_round/"
 file_limit = 200 # optional, set to -1 if not needed
-file_imit = -1
+file_limit = -1
 
 # Note: if for some reason someone is using this in 2020 it will break :)
 candidate_dirs = glob.glob(root_dir + "201*/141*/imap*/traffic.cap*")
@@ -18,7 +18,7 @@ all_items = []
 for item in candidate_dirs:
     if file_limit != -1:
         file_limit -= 1
-
+    all_items.append(item)
     if file_limit == 0:
             break
 
