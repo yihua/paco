@@ -4,6 +4,7 @@ from collections import defaultdict
 
 import MySQLdb
 import config_private as config 
+import string
 
 ##############################################################################
 #
@@ -30,46 +31,76 @@ def Tree():
     """ 
     return defaultdict(Tree)
 
-
 class TimeLine:
     """ Data structure for managing entire data timeline.
 
     Mostly a wrapper for HourSummary."""
+
     def __init__(self):
         self.timeline = {} 
+        self.connection = MySQLdb.connect('localhost', config.mysql_username, \
+                config.mysql_password, config.root_database)
+
+    def __del__(self):
+        self.connection.close()
+
 
     def load_from_database(self, filename):
         """ If present, load from database"""
-        connection = MySQLdb.connect('localhost', config.mysql_username, \
-                config.mysql_password, config.root_database)
 
         query = "SELECT * FROM data_by_hour"
-        cursor = connection.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(query)
         for row in cursor.fetchall():
             self.add_data_point(*row)
 
     def sync_to_database(self):
         """ Save to database, clearing existing data """ 
-        connection = MySQLdb.connect('localhost', config.mysql_username, \
-                config.mysql_password, config.root_database)
-        cursor = connection.cursor()
+
+        cursor = self.connection.cursor()
         cursor.execute("TRUNCATE TABLE data_by_hour");
         for t, v in self.timeline.iteritems():
             v.save_to_database(t, cursor)
-        connection.commit();
-        connection.close();
-
+        self.connection.commit();
 
     def add_data_point(self, timestamp, userid, app, location_rating, \
             network_type, content_type, bandwidth_up, bandwidth_down, \
             timestamp_adjustor = 1):
         """Figure out what timeline entry the data should be added to and add it there. """
+
         timestamp = timestamp / timestamp_adjustor 
         if timestamp not in self.timeline:
             self.timeline[timestamp] = HourSummary(timestamp)
         self.timeline[timestamp].add_data_point(userid, app, location_rating, \
                 network_type, content_type, bandwidth_up, bandwidth_down)
+
+    def fetch_all_hours(self):
+        """Returns a list of all unique times in order """
+        cursor = self.connection.cursor()
+        query = "SELECT DISTINCT hour FROM data_by_hour where HOUR >0 ORDER BY hour"
+        hours = []
+        cursor.execute(query)
+        for hour in cursor.fetchall():
+            hours.append(hour[0])
+        return hours
+
+    def fetch_data(self, filter_columns, hour):
+        """Return results of query with unique summed values based on the 
+        filters (table headings) given.
+        
+        """
+        query = "SELECT sum(bandwidth_up), sum(bandwidth_down) "
+
+        group_by = "hour"
+        if filter_columns:
+            query += "," + ", ".join(filter_columns)
+            group_by += "," + ", ".join(filter_columns)
+        query += (" FROM data_by_hour where hour = " + str(hour) + "  GROUP BY " + group_by)
+        cursor = self.connection.cursor()
+#        print query
+        cursor.execute(query)
+        for row in cursor.fetchall():
+            yield row
 
     def generate_plot(self, filter_columns):
         """ Generate a plottable list of data based on the filters (table headings) given. 
@@ -77,8 +108,7 @@ class TimeLine:
 
         Must have already loaded all data into the database.
         """
-        connection = MySQLdb.connect('localhost', config.mysql_username, \
-                config.mysql_password, config.root_database)
+
         query = "SELECT hour, sum(bandwidth_up), sum(bandwidth_down) "
 
         group_by = "hour"
@@ -86,20 +116,18 @@ class TimeLine:
             query += "," + ", ".join(filter_columns)
             group_by += "," + ", ".join(filter_columns)
         query += " FROM data_by_hour GROUP BY " + group_by
-        cursor = connection.cursor()
-        print query
+        cursor = self.connection.cursor()
+#        print query
         cursor.execute(query)
         for row in cursor.fetchall():
             to_print = [str(x) for x in row]
             print " ".join(to_print)
 
-        
-
 class HourSummary:
-
     """ Breakdown of bandwidth in each time slot summarized by various data types.
     
     Structure as a tree in rough order of how likely we are to query just that."""
+
     def __init__(self, time):
         self.time = time
         self.total_bandwidth = 0
@@ -115,12 +143,30 @@ class HourSummary:
                             values = [time, user, app, location_rating, \
                                     network_type, content_type, \
                                     bandwidth[0], bandwidth[1]]
-                            values = [str(x) for x in values]
+                            values = self.__clean_values(values)
                             query = "INSERT INTO data_by_hour (" + \
                                     ", ".join(column_names) + ") Values (" + \
                                     ", ".join(values) + ")" 
 #                            print query
                             cursor.execute(query)
+
+    def __clean_values(self, l):
+        """ Prepare list for loading into a database"""
+        ret_l = []
+        for item in l:
+            if isinstance(item, str):
+                item = filter(lambda x: x in string.printable, item)
+                item = item.replace("\'", "")
+                item = item.replace("\"", "")
+
+                item = "\"" + item + "\""
+            else:
+                item = str(item)
+            if len(item) == 0:
+               item = "NULL"
+            ret_l.append(item)
+        return ret_l
+
 
     def add_data_point(self, userid, app, location_rating, network_type, \
             content_type, bandwidth_up, bandwidth_down):
@@ -132,7 +178,6 @@ class HourSummary:
 
         self.location_tree[userid][app][location_rating][content_type][network_type][1] += bandwidth_down
         self.location_tree[userid][app][location_rating][content_type][network_type][0] += bandwidth_up
-
 
 if __name__ == "__main__":
     """ For testing only at this point"""
@@ -146,7 +191,4 @@ if __name__ == "__main__":
     
     timeline.sync_to_database()
     timeline.generate_plot(["location_rating", "network_type"])
-
-
-
 
