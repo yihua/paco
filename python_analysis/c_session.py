@@ -37,7 +37,9 @@ class CSession(CLogs):
 
     """ Load + interact with user session data.
     
-    Equivalent to filetype 4 from the C files."""
+    Equivalent to filetype 4 from the C files. 
+    Summary of all data from one user.  
+    """
 
     def __init__():
         data_format_labels = ["user_id",\
@@ -61,6 +63,7 @@ class CSession(CLogs):
 
 
 class CRate(CLogs):
+    """  One flow. """
     def __init__():
         separator = " "
         data_format_labels = ["is_down",\
@@ -82,7 +85,9 @@ class CRate(CLogs):
         CLogs.__init__("rate_summary.txt", data_format_labels, data_format_types)
 
 class CFlow(CLogs):
-        """ TODO finish"""
+        """ TODO finish
+        
+        TCP flow specifically"""
    
         parse_port_tuple = lambda x: x.split(":")
 
@@ -91,9 +96,12 @@ class CFlow(CLogs):
         data_format_labels = ["userID", \
             "tcp_flows_size", \
             # what is this?
-            "weird_thing",\
+            "unique_flow_id",\
             # these include ports
-            "clt_ip_tuple"\
+            "clt_ip_tupleweird_thingrse_port_tuple = lambda x: x.split(":")
+            
+                    clean_c_str = lambda x: x.strip("|")
+                    "\
             "server_ip_tuple"\
             "start_time", \
             "tmp_start_time",\
