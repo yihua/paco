@@ -17,18 +17,19 @@ class CLogs:
 
         f =open(self.filename)
         for line in f:
-            line = line.split()
+            line = line.strip()
+            line = line.split(" ")
             if len(line) != len(self.data_format_labels):
-                print "Warning: line length wrong, expected", len(self.data_format_labels)
+                print "Warning: line length wrong, expected", len(self.data_format_labels), len(self.data_format_types), len(line)
                 print "\t", line
                 continue
 
             # convert data to the appropriate type e.g. ["a", "1", "2"] + [str, int, int] 
             # becomes ["a", 1, 2]
-            line = [data_type(val) for (datatype, val) in zip(self.data_format_types, line)]
+            line = [datatype(val) for (datatype, val) in zip(self.data_format_types, line)]
             new_item= {}
 
-            data.append(new_item)
+            self.data.append(new_item)
 
         f.close()
 
@@ -41,30 +42,30 @@ class CSession(CLogs):
     Summary of all data from one user.  
     """
 
-    def __init__():
+    def __init__(self):
         data_format_labels = ["user_id",\
                     "start_time",\
                     "end_time",\
-                    "ul_ip_all",\ 
+                    "ul_ip_all",\
                     "ul_ip_payload",\
-                    "ul_tcp_all",\ 
+                    "ul_tcp_all",\
                     "ul_tcp_payload",\
-                    "ul_udp_all",\ 
+                    "ul_udp_all",\
                     "ul_udp_payload",\
-                    "dl_ip_all",\ 
+                    "dl_ip_all",\
                     "dl_ip_payload",\
-                    "dl_tcp_all",\ 
+                    "dl_tcp_all",\
                     "dl_tcp_payload",\
-                    "dl_udp_all",\ 
+                    "dl_udp_all",\
                     "dl_udp_payload"]
         data_format_types = [str, float, float, int, int, int, int, int, int, \
                 int, int, int, int, int,int]
-        CLogs.__init__("session_summary.txt", data_format_labels, data_format_types)
+        CLogs.__init__(self, "session_summary.txt", data_format_labels, data_format_types)
 
 
 class CRate(CLogs):
     """  One flow. """
-    def __init__():
+    def __init__(self):
         separator = " "
         data_format_labels = ["is_down",\
             "userID", \
@@ -79,30 +80,28 @@ class CRate(CLogs):
             "udp_payload"]
 
         # convert ul to boolean
-        data_format_types = [ lambda x: x == "dl", \ 
+        data_format_types = [ lambda x: x == "dl", \
             str, float, float, float, int, int, int, int, int]
  
-        CLogs.__init__("rate_summary.txt", data_format_labels, data_format_types)
+        CLogs.__init__(self, "rate_summary.txt", data_format_labels, data_format_types)
 
 class CFlow(CLogs):
-        """ TODO finish
-        
-        TCP flow specifically"""
+    """ TODO finish
+    
+    TCP flow specifically"""
+    def __init__(self):
    
         parse_port_tuple = lambda x: x.split(":")
 
-        clean_c_str = lambda x: x.strip("|") 
+        clean_c_str = lambda x: x.replace("|", "").replace("*", "")
  
         data_format_labels = ["userID", \
             "tcp_flows_size", \
             # what is this?
             "unique_flow_id",\
             # these include ports
-            "clt_ip_tupleweird_thingrse_port_tuple = lambda x: x.split(":")
-            
-                    clean_c_str = lambda x: x.strip("|")
-                    "\
-            "server_ip_tuple"\
+            "clt_ip_tuple",\
+            "server_ip_tuple",\
             "start_time", \
             "tmp_start_time",\
             "first_ul_pl_time", \
@@ -124,13 +123,14 @@ class CFlow(CLogs):
             "dl_rate_payload_h",\
             "http_request_count",\
             "content_type", \
-            "user_agent"\
+            "user_agent",\
             "host",\
-            "content_length"\
+            "content_length",\
             "total_content_length"]
 
         
         data_format_types = [str, \
+                int,\
                 str,\
                 parse_port_tuple,\
                 parse_port_tuple,\
@@ -160,5 +160,5 @@ class CFlow(CLogs):
                 clean_c_str,\
                 int]
 
-        CLogs.__init__("flow_summary.txt", data_format_labels, data_format_types)
+        CLogs.__init__(self,"flow_summary.txt", data_format_labels, data_format_types)
             
