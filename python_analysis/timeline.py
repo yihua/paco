@@ -3,7 +3,7 @@
 from collections import defaultdict
 
 import MySQLdb
-import config_private 
+import config_private as config 
 
 ##############################################################################
 #
@@ -22,10 +22,12 @@ import config_private
 # 
 ##############################################################################
 
-column_names = ["hour", "userid", "app", "location_rating", "network_type", "bandwidth"]
+column_names = ["hour", "userid", "app", "location_rating", "network_type", \
+        "content_type", "bandwidth_up", "bandwidth_down"]
 
 def Tree():
-   """ Is there a better way of making a tree?""" 
+    """ Is there a better way of making a tree?
+    """ 
     return defaultdict(Tree)
 
 
@@ -34,12 +36,12 @@ class TimeLine:
 
     Mostly a wrapper for HourSummary."""
     def __init__(self):
-        self.timeline = defaultdict(HourSummary)
-
+        self.timeline = {} 
 
     def load_from_database(self, filename):
         """ If present, load from database"""
-        connection = MySQLdb.connect('localhost', config.mysql_username, config.mysql_password, config.root_database)
+        connection = MySQLdb.connect('localhost', config.mysql_username, \
+                config.mysql_password, config.root_database)
 
         query = "SELECT * FROM data_by_hour"
         cursor = connection.cursor()
@@ -49,8 +51,9 @@ class TimeLine:
 
     def sync_to_database(self):
         """ Save to database, clearing existing data """ 
-        connection = MySQLdb.connect('localhost', config.mysql_username, config.mysql_password, config.root_database)
-        cursor = self.connection.cursor()
+        connection = MySQLdb.connect('localhost', config.mysql_username, \
+                config.mysql_password, config.root_database)
+        cursor = connection.cursor()
         cursor.execute("TRUNCATE TABLE data_by_hour");
         for t, v in self.timeline.iteritems():
             v.save_to_database(t, cursor)
@@ -58,10 +61,15 @@ class TimeLine:
         connection.close();
 
 
-    def add_data_point(self, timestamp, userid, app, location_rating, network_type, bandwidth, timestamp_adjustor = 1):
+    def add_data_point(self, timestamp, userid, app, location_rating, \
+            network_type, content_type, bandwidth_up, bandwidth_down, \
+            timestamp_adjustor = 1):
         """Figure out what timeline entry the data should be added to and add it there. """
-        timestamp = timestamp / 3600 
-        timeline[timestamp].add_data_point(userid, app, location_rating, network_type, banwidth)
+        timestamp = timestamp / timestamp_adjustor 
+        if timestamp not in self.timeline:
+            self.timeline[timestamp] = HourSummary(timestamp)
+        self.timeline[timestamp].add_data_point(userid, app, location_rating, \
+                network_type, content_type, bandwidth_up, bandwidth_down)
 
     def generate_plot(self, filter_columns):
         """ Generate a plottable list of data based on the filters (table headings) given. 
@@ -69,15 +77,22 @@ class TimeLine:
 
         Must have already loaded all data into the database.
         """
-        connection = MySQLdb.connect('localhost', config.mysql_username, config.mysql_password, config.root_database)
-        query = "SELECT hour, sum(bandwidth) "
+        connection = MySQLdb.connect('localhost', config.mysql_username, \
+                config.mysql_password, config.root_database)
+        query = "SELECT hour, sum(bandwidth_up), sum(bandwidth_down) "
 
         group_by = "hour"
         if filter_columns:
             query += "," + ", ".join(filter_columns)
             group_by += "," + ", ".join(filter_columns)
-        query += " FROM data_by_hour GROUP BY" + group_by
-        cursor =  
+        query += " FROM data_by_hour GROUP BY " + group_by
+        cursor = connection.cursor()
+        print query
+        cursor.execute(query)
+        for row in cursor.fetchall():
+            to_print = [str(x) for x in row]
+            print " ".join(to_print)
+
         
 
 class HourSummary:
@@ -93,39 +108,44 @@ class HourSummary:
 
     def save_to_database(self, time, cursor):
         for user, v in self.location_tree.iteritems():
-            for app, v2 in self.v.iteritems():
-                for location_rating, v3 in self.v2.iteritems():
-                    for network_type, bandwidth in self.v3.iteritems():
-                        values = [time, user, app, location_rating, network_type, bandwidth]
-                        cursor.execute("INSERT INTO data_by_hour (" + ", ".join(column_names) + ") Values (" + ", ".join(values)) 
+            for app, v2 in v.iteritems():
+                for location_rating, v3 in v2.iteritems():
+                    for content_type, v4 in v3.iteritems():
+                        for network_type, bandwidth in v4.iteritems():
+                            values = [time, user, app, location_rating, \
+                                    network_type, content_type, \
+                                    bandwidth[0], bandwidth[1]]
+                            values = [str(x) for x in values]
+                            query = "INSERT INTO data_by_hour (" + \
+                                    ", ".join(column_names) + ") Values (" + \
+                                    ", ".join(values) + ")" 
+#                            print query
+                            cursor.execute(query)
 
-    def add_data_point(self, userid, app, location_rating, network_type, bandwidth):
+    def add_data_point(self, userid, app, location_rating, network_type, \
+            content_type, bandwidth_up, bandwidth_down):
         """ Each parameter is another 'level' of the tree, bandwidth is additive."""
 
         # We need to convert the leaves to ints rather than dicts 
-        if (network_type) not in self.location_tree[userid][app][location_rating]:
-            self.location_tree[userid][app][location_rating] = defaultdict(int)
+        if (network_type) not in self.location_tree[userid][app][location_rating][content_type]:
+            self.location_tree[userid][app][location_rating][content_type][network_type] = [0, 0]
 
-        self.location_tree[userid][app][location_rating][network_type] += bandwidth
-
-
-
-
-
+        self.location_tree[userid][app][location_rating][content_type][network_type][1] += bandwidth_down
+        self.location_tree[userid][app][location_rating][content_type][network_type][0] += bandwidth_up
 
 
 if __name__ == "__main__":
     """ For testing only at this point"""
     
     timeline = TimeLine()
-    timeline.add_data_point(1, 2, 3, 4, 5, 6)
-    timeline.add_data_point(1, 2, 3, 4, 5, 7)
-    timeline.add_data_point(2, 3, 4, 5, 6, 7)
-    timeline.add_data_point(3, 4, 5, 6, 7, 8)
-    timeline.add_data_point(2, 2, 3, 4, 5, 6)
+    timeline.add_data_point(1, 2, 3, 4, 5, 6, 7, 7)
+    timeline.add_data_point(1, 2, 3, 4, 5, 7, 8, 5)
+    timeline.add_data_point(2, 3, 4, 5, 6, 7, 9, 4)
+    timeline.add_data_point(3, 4, 5, 6, 7, 8, 10, 3)
+    timeline.add_data_point(2, 2, 3, 4, 5, 6, 11, 2)
     
     timeline.sync_to_database()
-    timeline.generate_plot("location_rating", "network_type")
+    timeline.generate_plot(["location_rating", "network_type"])
 
 
 

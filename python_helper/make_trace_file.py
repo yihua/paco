@@ -21,6 +21,6 @@ for item in candidate_dirs:
     all_items.append(item)
     if file_limit == 0:
             break
-
+all_items.sort()
 for item in all_items:
     print >> f, item
