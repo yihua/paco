@@ -3,5 +3,6 @@ traceList
 paco
 *.txt
 *.swp
+*.pyc
 pcaplistallsort
 python_analysis/config_private.py

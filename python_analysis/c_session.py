@@ -10,16 +10,21 @@ class CLogs:
         self.filename = "/z/user-study-imc15/PACO/" + filename
         self.data_format_labels = data_format_labels
         self.data_format_types = data_format_types
-        self.load_data()
+#        self.load_data()
 
 
-    def load_data(self):
+    def load_data(self, limit=-1):
 
         f =open(self.filename)
         for line in f:
+            if limit != -1:
+                limit -= 1
             line = line.strip()
             line = line.split(" ")
-            if len(line) != len(self.data_format_labels):
+
+            # Some lines are mangled...
+            # This should happen rarely though
+            if len(line) != len(self.data_format_labels) or len(line) != len(self.data_format_types):
                 print "Warning: line length wrong, expected", len(self.data_format_labels), len(self.data_format_types), len(line)
                 print "\t", line
                 continue
@@ -27,9 +32,11 @@ class CLogs:
             # convert data to the appropriate type e.g. ["a", "1", "2"] + [str, int, int] 
             # becomes ["a", 1, 2]
             line = [datatype(val) for (datatype, val) in zip(self.data_format_types, line)]
-            new_item= {}
 
+            new_item= dict(zip(self.data_format_labels, line)) 
             self.data.append(new_item)
+            if limit == 0:
+                break
 
         f.close()
 
@@ -162,3 +169,9 @@ class CFlow(CLogs):
 
         CLogs.__init__(self,"flow_summary.txt", data_format_labels, data_format_types)
             
+if __name__ == "__main__":
+    """ For testing only at this point"""
+    flows = CFlow()
+    flows.load_data(100)
+    for item in flows.data:
+        print item 
