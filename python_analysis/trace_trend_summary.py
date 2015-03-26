@@ -3,13 +3,17 @@
 import c_session
 import timeline
 from collections import defaultdict
+from IPy import IP
+import socket
 
 flows = c_session.CFlow()
-flows.load_data(5000)
+flows.load_data()
 
 timeline = timeline.TimeLine()
 
 timestamp_adjustor = 3600 * 24
+
+dns_lookup = {}
 
 for item in flows.data:
     userid = item["userID"]
@@ -19,11 +23,22 @@ for item in flows.data:
     content_type = item["content_type"]
     time = item["start_time"]
 
+    app = app.split(":")[0]
+    try:
+        # will throw an exception if not an IP
+        IP(app)
+        if app not in dns_lookup:
+            host = socket.gethostbyaddr(app)
+            dns_lookup[app] = host
+    except:
+        pass
+
     app = app.split(".")
     if len(app) >= 2:
         app = ".".join(app[-2:])
-        app = app.split(":")[0]
-        timeline.add_data_point(time, userid, app, -1, -1, content_type, size_up, size_down, timestamp_adjustor)
+    else:
+        continue
+    timeline.add_data_point(time, userid, app, -1, -1, content_type, size_up, size_down, timestamp_adjustor)
     # TODO encrypted or not encrypted
 
 timeline.sync_to_database()
@@ -35,7 +50,7 @@ hours = timeline.fetch_all_hours()
 #################################################################################
 
 
-if True:
+if False:
     top_downloads = defaultdict(int) 
     top_uploads = defaultdict(int) 
     for hour in hours:
@@ -70,6 +85,46 @@ if True:
             print >>g, keys_down[i]
     f.close()
     g.close()
+
+#################################################################################
+#  Make plot 
+#################################################################################
+
+if True:
+    f = open("top_upload_hosts.txt")
+    upload_hosts = {} 
+    limit = 10
+    for line in f:
+        upload_hosts[line.strip()] = 0
+        limit -= 1
+        if limit == 0:
+            break
+    f.close()
+
+    f = open("top_download_hosts.txt")
+    download_hosts = []
+    limit = 10
+    for line in f:
+        download_hosts[line.strip()] = 0
+        limit -= 1
+        if limit == 0:
+            break
+    f.close()
+    
+    for hour in hours:
+        download_dict = dict(download_hosts) 
+
+        print hour,
+        for row in timeline.fetch_data(["app"], hour):
+            for key in download_dict.keys():
+                print timeline.fetch_match_column("app", key, hour),
+        
+        upload_dict = dict(upload_hosts) 
+        for row in timeline.fetch_data(["app"], hour):
+            for key in upload_dict.keys():
+                print timeline.fetch_match_column("app", key, hour),
+
+    
 
 #timeline.generate_plot(["host"])
 

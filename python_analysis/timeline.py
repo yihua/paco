@@ -84,6 +84,23 @@ class TimeLine:
             hours.append(hour[0])
         return hours
 
+    def fetch_match_column(self, filter_column, value, hour):
+        """ Given an hour, a column and a value, sum up the bandwidths that match that."""
+
+        query = "SELECT sum(bandwidth_up), sum(bandwidth_down) FROM data_by_hour WHERE hour=" + str(hour) + " AND " + filter_column + " = " + str(value)
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        bandwidth_up = 0
+        bandwidth_down = 0
+        for row in cursor.fetchall():
+            try:
+                bandwidth_up += int(row[0])
+                bandwidth_down += int(row[1])
+            except:
+                continue
+
+        
+
     def fetch_data(self, filter_columns, hour):
         """Return results of query with unique summed values based on the 
         filters (table headings) given.
@@ -97,7 +114,6 @@ class TimeLine:
             group_by += "," + ", ".join(filter_columns)
         query += (" FROM data_by_hour where hour = " + str(hour) + "  GROUP BY " + group_by)
         cursor = self.connection.cursor()
-#        print query
         cursor.execute(query)
         for row in cursor.fetchall():
             yield row
