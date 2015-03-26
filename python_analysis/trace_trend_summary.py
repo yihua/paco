@@ -102,7 +102,7 @@ if True:
     f.close()
 
     f = open("top_download_hosts.txt")
-    download_hosts = []
+    download_hosts = {} 
     limit = 10
     for line in f:
         download_hosts[line.strip()] = 0

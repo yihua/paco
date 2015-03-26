@@ -3,6 +3,9 @@
 import operator
 
 #
+#     Right now I'm sort of assuming each thing sent can be treated as more
+#     or less one point in time, this may be an unreasonable approximation eventually.
+#
 #  Format of timeline data:
 #     dict: [time][other data structure]
 #
@@ -87,6 +90,19 @@ def merge(timestream_list, attribute_list):
         if item.match_attribute(attribute_list[attribute_list_ptr]) == 0:
             item.merge_attribute(attribute_list[attribute_list_ptr])
 
+def load_timeline():
+    flows = c_session.CFlow()
+    flows.load_data()
 
+    timeline = []
+    for item in flows.data:
+        user = item["userid"]
+        time = item["start_time"] 
+        data_start_attributes = {}
+        data_start_attributes["flow_host"] = item["host"] 
+        data_start_attributes["flow_dl_payload"] = item["total_dl_payload_h"] 
+        data_start_attributes["flow_ul_payload"] = item["total_ul_payload_h"] 
+        data_start_attributes["flow_content"] = item["content_type"] 
+        timeline.append(TimestreamItem(user, time, data_start_attributes))
 
-
+    return timeline
