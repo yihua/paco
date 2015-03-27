@@ -57,6 +57,7 @@ TCPFlow::TCPFlow() {
     bytes_in_fly = 0;
     max_bytes_in_fly = 0;
     packet_count = 0;
+    app_packet_count = 0;
     dup_ack_count = 0;
     outorder_seq_count = 0;
 
@@ -70,6 +71,7 @@ TCPFlow::TCPFlow() {
     http_request_count = 0;
     content_type = "";
     user_agent = "";
+    appName = "";
     host = "";
     first_content_type = "";
     first_user_agent = "";

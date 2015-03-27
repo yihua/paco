@@ -101,7 +101,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
 	int size = tcpflow->content_type.size() + tcpflow->user_agent.size() +
 				tcpflow->host.size() + tcpflow->content_length.size() + 1000;
 	char buf[size];
-	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d \
+	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d %lld %lld %s \
 %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
 %lld %lld %lld %lld %.6lf %.6lf %.6lf %lld %lld \
 %lld %lld %lld %lld \
@@ -112,6 +112,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
 		tcpflow->clt_port,
 		(tcpflow->svr_ip)>>24, (tcpflow->svr_ip)>>16 & 0xFF, (tcpflow->svr_ip)>>8 & 0xFF, (tcpflow->svr_ip) & 0xFF,
 		tcpflow->svr_port,
+		tcpflow->packet_count, tcpflow->app_packet_count, tcpflow->appName.c_str(), 
 		tcpflow->start_time, tcpflow->tmp_start_time,
 		tcpflow->first_ul_pl_time, tcpflow->first_dl_pl_time,
 		tcpflow->last_ul_pl_time, tcpflow->last_dl_pl_time,
@@ -571,7 +572,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					//} else {
 					} else if (flow_it_tmp == userp->tcp_flows.end() && (tcp_hdr->syn) != 0 && (b1 && !b2)) {
 						//no flow found, now uplink SYN packet
-						//cout << "new flow: " << appName << " " << flow_index <<  endl;
+					//	cout << "new flow: " << appName << " " << flow_index <<  endl;
 						userp->tcp_flows[flow_index] = new TCPFlow();
 						flow = userp->tcp_flows[flow_index];
 
@@ -672,7 +673,15 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					//flow = &client_flows[flow_index];
 					flow->end_time = ts;
 					flow->packet_count++; //should be before the SYN-RTT analysis
-
+					if (flow->appName.length() > 0) {
+						if (appName.compare(flow->appName) == 0) {
+							flow->app_packet_count++;
+						}
+					} else {
+						flow->appName = appName;
+						flow->app_packet_count++;
+						//cout << "flow name: " << flow->appName << "|" << appName << endl;
+					}
 					flow->last_tcp_ts = ts;
 
 					//if a terminate flow packet is here, terminate flow and output flow statistics

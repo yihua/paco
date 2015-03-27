@@ -79,6 +79,7 @@ public:
     uint64 bytes_in_fly;
     uint64 max_bytes_in_fly;
     uint64 packet_count;
+    uint64 app_packet_count;
     uint64 dup_ack_count;
     uint64 outorder_seq_count;
     double total_bw;
@@ -100,6 +101,7 @@ public:
     u_int total_content_length;
 
     string userID;
+    string appName;
     //called during init or any abnormal happens
     void reset_seq();
     void reset_ack();
