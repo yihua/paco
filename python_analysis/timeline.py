@@ -24,7 +24,7 @@ import string
 ##############################################################################
 
 column_names = ["hour", "userid", "app", "location_rating", "network_type", \
-        "content_type", "bandwidth_up", "bandwidth_down"]
+        "content_type", "bandwidth_up", "bandwidth_down", "bandwidth_up_encrypted", "bandwidth_down_encrypted"]
 
 def Tree():
     """ Is there a better way of making a tree?
@@ -64,15 +64,16 @@ class TimeLine:
         self.connection.commit();
 
     def add_data_point(self, timestamp, userid, app, location_rating, \
-            network_type, content_type, bandwidth_up, bandwidth_down, \
-            timestamp_adjustor = 1):
+            network_type, content_type, bandwidth_up, bandwidth_down, bandwidth_up_encrypted, \
+            bandwidth_down_encrypted, timestamp_adjustor = 1):
         """Figure out what timeline entry the data should be added to and add it there. """
 
         timestamp = timestamp / timestamp_adjustor 
         if timestamp not in self.timeline:
             self.timeline[timestamp] = HourSummary(timestamp)
         self.timeline[timestamp].add_data_point(userid, app, location_rating, \
-                network_type, content_type, bandwidth_up, bandwidth_down)
+                network_type, content_type, bandwidth_up, bandwidth_down, \
+                bandwidth_up_encrypted, bandwidth_down_encrypted)
 
     def fetch_all_hours(self):
         """Returns a list of all unique times in order """
@@ -87,17 +88,22 @@ class TimeLine:
     def fetch_match_column(self, filter_column, value, hour):
         """ Given an hour, a column and a value, sum up the bandwidths that match that."""
 
-        query = "SELECT sum(bandwidth_up), sum(bandwidth_down) FROM data_by_hour WHERE hour=" + str(hour) + " AND " + filter_column + " = " + str(value)
+        query = "SELECT sum(bandwidth_up), sum(bandwidth_down) , sum(bandwidth_up_encrypted), sum(bandwdith_down_encrypted) FROM data_by_hour WHERE hour=" + str(hour) + " AND " + filter_column + " = \"" + str(value) + "\""
         cursor = self.connection.cursor()
         cursor.execute(query)
         bandwidth_up = 0
         bandwidth_down = 0
+        bandwidth_up_encrypted = 0
+        bandwidth_down_encrypted = 0
         for row in cursor.fetchall():
             try:
                 bandwidth_up += int(row[0])
                 bandwidth_down += int(row[1])
+                bandwidth_up_encrypted += int(row[2])
+                bandwidth_down_encrypted += int(row[3])
             except:
                 continue
+        return (bandwidth_up, bandwidth_down, bandwidth_up_encrypted, bandwidth_down_encrypted)
 
         
 
@@ -106,7 +112,7 @@ class TimeLine:
         filters (table headings) given.
         
         """
-        query = "SELECT sum(bandwidth_up), sum(bandwidth_down) "
+        query = "SELECT sum(bandwidth_up), sum(bandwidth_down) , sum(bandwidth_up_encrypted), sum(bandwidth_down_encrypted) "
 
         group_by = "hour"
         if filter_columns:
@@ -125,7 +131,7 @@ class TimeLine:
         Must have already loaded all data into the database.
         """
 
-        query = "SELECT hour, sum(bandwidth_up), sum(bandwidth_down) "
+        query = "SELECT hour, sum(bandwidth_up), sum(bandwidth_down) , sum(bandwidth_up_encrypted), sum(bandwidth_down_encrypted)"
 
         group_by = "hour"
         if filter_columns:
@@ -158,13 +164,16 @@ class HourSummary:
                         for network_type, bandwidth in v4.iteritems():
                             values = [time, user, app, location_rating, \
                                     network_type, content_type, \
-                                    bandwidth[0], bandwidth[1]]
+                                    bandwidth[0], bandwidth[1], bandwidth[2], bandwidth[3]]
                             values = self.__clean_values(values)
                             query = "INSERT INTO data_by_hour (" + \
                                     ", ".join(column_names) + ") Values (" + \
                                     ", ".join(values) + ")" 
 #                            print query
-                            cursor.execute(query)
+                            try:
+                                cursor.execute(query)
+                            except:
+                                print query
 
     def __clean_values(self, l):
         """ Prepare list for loading into a database"""
@@ -185,15 +194,17 @@ class HourSummary:
 
 
     def add_data_point(self, userid, app, location_rating, network_type, \
-            content_type, bandwidth_up, bandwidth_down):
+            content_type, bandwidth_up, bandwidth_down,  bandwidth_up_encrypted, bandwidth_down_encrypted):
         """ Each parameter is another 'level' of the tree, bandwidth is additive."""
 
         # We need to convert the leaves to ints rather than dicts 
         if (network_type) not in self.location_tree[userid][app][location_rating][content_type]:
-            self.location_tree[userid][app][location_rating][content_type][network_type] = [0, 0]
+            self.location_tree[userid][app][location_rating][content_type][network_type] = [0, 0, 0, 0]
 
         self.location_tree[userid][app][location_rating][content_type][network_type][1] += bandwidth_down
         self.location_tree[userid][app][location_rating][content_type][network_type][0] += bandwidth_up
+        self.location_tree[userid][app][location_rating][content_type][network_type][3] += bandwidth_down_encrypted
+        self.location_tree[userid][app][location_rating][content_type][network_type][2] += bandwidth_up_encrypted
 
 if __name__ == "__main__":
     """ For testing only at this point"""

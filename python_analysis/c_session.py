@@ -77,7 +77,7 @@ class CRate(CLogs):
         data_format_labels = ["is_down",\
             "userID", \
             "start_time", \
-            "start_time ", \
+            "start_time_binned ", \
             "end_time", \
             "ip_all", \
             "ip_payload", \
@@ -109,6 +109,9 @@ class CFlow(CLogs):
             # these include ports
             "clt_ip_tuple",\
             "server_ip_tuple",\
+            "packet_count",\
+            "app_packet_count",\
+            "app_name",\
             "start_time", \
             "tmp_start_time",\
             "first_ul_pl_time", \
@@ -141,6 +144,9 @@ class CFlow(CLogs):
                 str,\
                 parse_port_tuple,\
                 parse_port_tuple,\
+                int,\
+                int,\
+                str,\
                 float, \
                 float,\
                 float,\

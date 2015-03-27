@@ -1,7 +1,10 @@
 #!/usr/bin/python
 
 import operator
+import c_session 
 
+# This is for merging attributes with a trace (rather than an hour-by-hour timeline; we 
+# convert to such a timeline after)
 #
 #     Right now I'm sort of assuming each thing sent can be treated as more
 #     or less one point in time, this may be an unreasonable approximation eventually.
@@ -34,14 +37,18 @@ class AttributeItem:
         self.end_time = end_time
         self.other_data = other_data
 
+    def sortme(self):
+        attribute_list.sort(key=operator.attrgetter("begin_time"))
+
 class TimestreamItem:
-    def __init__(self, user, time, data_start_attributes):
+    def __init__(self, user, time, time_end, data_start_attributes):
         """
 
         data_start_attributes: a dict of labels and values
         """
         self.user = user
         self.time = time
+        self.time_end = time_end # We ignore this in most cases as an approximation...
         self.data = data_start_attributes 
 
     def merge_attribute(self, attribute, overwrite=False):
@@ -69,40 +76,53 @@ class TimestreamItem:
         else:
             return 0
 
-def merge(timestream_list, attribute_list):
-    """ Assign the appropriate attribute to the timestream"""
+    def sortme(self):
+        self.sort(key=operator.attrgetter("time"))
 
-    attribute_list.sort(key=operator.attrgetter("begin_time"))
-    timestream_list.sort(key=operator.attrgetter("time"))
+def merge(timestream_list, attribute_list):
+    """ Assign the appropriate attribute to the timestream.
+    
+    Both must be sorted."""
+
 
     # I'm sure there's a more pythonic way of doing this...
     attribute_list_ptr = 0
     attribute_list_last = len(attribute_list)
+#    print attribute_list
     for item in timestream_list:
 
         if attribute_list_ptr >= attribute_list_last:
             break
-        
-        while item.match_attribute(attribute_list[attribute_list_ptr]) < 0 and \
-                attribute_list_ptr < attribute_list_last:
+       
+
+
+        while   attribute_list_ptr < attribute_list_last and \
+                item.match_attribute(attribute_list[attribute_list_ptr]) < 0:
+#            print "looking for attribute:", item.time, attribute_list[attribute_list_ptr].begin_time, attribute_list[attribute_list_ptr].end_time
             attribute_list_ptr += 1
 
-        if item.match_attribute(attribute_list[attribute_list_ptr]) == 0:
+        if  attribute_list_ptr < attribute_list_last and \
+                item.match_attribute(attribute_list[attribute_list_ptr]) == 0:
             item.merge_attribute(attribute_list[attribute_list_ptr])
 
-def load_timeline():
+def load_timeline(limit=-1):
     flows = c_session.CFlow()
-    flows.load_data()
+    flows.load_data(limit=-1)
 
-    timeline = []
+    timeline = {} 
     for item in flows.data:
-        user = item["userid"]
-        time = item["start_time"] 
+        user = item["userID"]
+        time = max(item["start_time"], item["tmp_start_time"])
+        end_time = max(item["last_ul_pl_time"], item["last_dl_pl_time"])
         data_start_attributes = {}
-        data_start_attributes["flow_host"] = item["host"] 
+        data_start_attributes["flow_host"] = item["app_name"] 
         data_start_attributes["flow_dl_payload"] = item["total_dl_payload_h"] 
         data_start_attributes["flow_ul_payload"] = item["total_ul_payload_h"] 
         data_start_attributes["flow_content"] = item["content_type"] 
-        timeline.append(TimestreamItem(user, time, data_start_attributes))
+        data_start_attributes["flow_encrypted"] = (len(item["host"]) == 0)
+
+        if user not in timeline:
+            timeline[user] = []
+        timeline[user].append(TimestreamItem(user, time, end_time, data_start_attributes))
 
     return timeline
