@@ -21,6 +21,60 @@ import c_session
 #
 #  Treat each user separately
 
+def load_from_file(glob_string, file_name, parse_function, generate_attributes, limit = -1):
+
+    user_attributes = {}
+
+    user_attribute_rating = {}
+
+    user_last_attribute = {}
+
+    
+    dirs = glob.glob(glob_string)
+    for d in dirs:
+        if limit != -1:
+            if limit== 0:
+                break
+            limit -= 1
+
+        user = d.split("/")[-2].split("-")[-1]
+
+        if user not in user_attributes:
+            user_attributes[user] = []
+            user_attribute_rating = {}
+
+        try:
+            archive = zipfile.ZipFile(d, 'r')
+        except:
+            print "warning! not a zip file?", d
+            continue
+
+        last_attr = None
+        if user in user_last_attribute:
+            last_attr = user_last_attr[user]
+            
+        with archive.open(file_name) as f:
+            for line in f:
+                parse_function(user_attributes, user_attribute_rating, last_attribute)
+
+        user_last_attribute[user] = last_attribuge
+
+    generate_attributes(user_attributes, user_attribute_rating)
+
+    timestream = {}
+    for user, timeline in user_attributes.iteritems():
+        if len(timeline) == 0:
+            continue
+        timestream[user] = {}
+
+        for attribute in timeline:
+            add_attribute(user, timestream, attribute)
+        timestream[user].sort(key=operator.attrgetter("time"))
+    return timestream
+
+
+    
+
 class AttributeItem:
     def __init__(self, user, begin_time, end_time, other_data):
         """
@@ -33,12 +87,12 @@ class AttributeItem:
         """
 
         self.user = user
-        self.begin_time = begin_time
-        self.end_time = end_time
+        self.begin_time = int(begin_time)
+        self.end_time = int(end_time)
         self.other_data = other_data
 
-    def sortme(self):
-        attribute_list.sort(key=operator.attrgetter("begin_time"))
+#        l.sort(key=operator.attrgetter("begin_time"))
+
 
 class TimestreamItem:
     def __init__(self, user, time, time_end, data_start_attributes):
@@ -47,8 +101,8 @@ class TimestreamItem:
         data_start_attributes: a dict of labels and values
         """
         self.user = user
-        self.time = time
-        self.time_end = time_end # We ignore this in most cases as an approximation...
+        self.time = int(float(time)*1000)
+        self.time_end = int(float(time_end)*1000) # We ignore this in most cases as an approximation...
         self.data = data_start_attributes 
 
     def merge_attribute(self, attribute, overwrite=False):
@@ -76,14 +130,11 @@ class TimestreamItem:
         else:
             return 0
 
-    def sortme(self):
-        self.sort(key=operator.attrgetter("time"))
 
 def merge(timestream_list, attribute_list):
     """ Assign the appropriate attribute to the timestream.
     
     Both must be sorted."""
-
 
     # I'm sure there's a more pythonic way of doing this...
     attribute_list_ptr = 0
@@ -93,13 +144,12 @@ def merge(timestream_list, attribute_list):
 
         if attribute_list_ptr >= attribute_list_last:
             break
-       
-
 
         while   attribute_list_ptr < attribute_list_last and \
-                item.match_attribute(attribute_list[attribute_list_ptr]) < 0:
-#            print "looking for attribute:", item.time, attribute_list[attribute_list_ptr].begin_time, attribute_list[attribute_list_ptr].end_time
+                item.match_attribute(attribute_list[attribute_list_ptr]) > 0:
+            print "looking for attribute:", item.time, attribute_list[attribute_list_ptr].begin_time, attribute_list[attribute_list_ptr].end_time
             attribute_list_ptr += 1
+        print "looking for attribute, mismatch:", item.time, attribute_list[attribute_list_ptr].begin_time, attribute_list[attribute_list_ptr].end_time
 
         if  attribute_list_ptr < attribute_list_last and \
                 item.match_attribute(attribute_list[attribute_list_ptr]) == 0:
@@ -125,4 +175,6 @@ def load_timeline(limit=-1):
             timeline[user] = []
         timeline[user].append(TimestreamItem(user, time, end_time, data_start_attributes))
 
+    for user, user_timeline in timeline.iteritems():
+        user_timeline.sort(key=operator.attrgetter("start_time"))
     return timeline

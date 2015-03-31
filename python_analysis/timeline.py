@@ -36,10 +36,11 @@ class TimeLine:
 
     Mostly a wrapper for HourSummary."""
 
-    def __init__(self):
+    def __init__(self, table_name="data_by_hour"): # make unique for each test
         self.timeline = {} 
         self.connection = MySQLdb.connect('localhost', config.mysql_username, \
                 config.mysql_password, config.root_database)
+        self.table_name = table_name
 
     def __del__(self):
         self.connection.close()
@@ -48,7 +49,7 @@ class TimeLine:
     def load_from_database(self, filename):
         """ If present, load from database"""
 
-        query = "SELECT * FROM data_by_hour"
+        query = "SELECT * FROM " + self.table_name
         cursor = self.connection.cursor()
         cursor.execute(query)
         for row in cursor.fetchall():
@@ -58,10 +59,32 @@ class TimeLine:
         """ Save to database, clearing existing data """ 
 
         cursor = self.connection.cursor()
-        cursor.execute("TRUNCATE TABLE data_by_hour");
+        cursor.execute("TRUNCATE TABLE " + self.table_name);
         for t, v in self.timeline.iteritems():
             v.save_to_database(t, cursor)
         self.connection.commit();
+
+    def add_flow_item(self, item):
+        userid = item["userID"]
+        is_encrypted =  (len(item["host"]) == 0)
+        app = item["app_name"]
+
+        size_up = item["total_dl_payload_h"]
+        size_down = item["total_ul_payload_h"]
+        content_type = item["content_type"]
+        time = item["start_time"]
+        
+        size_up_encrypted = 0
+        size_down_encrypted = 0
+
+        if is_encrypted:
+            size_up_encrypted = size_up 
+            size_down_encrypted = size_down
+            size_up = 0
+            size_down = 0
+
+        self.add_data_point(time, userid, app, -1, -1, content_type, size_up, size_down, size_up_encrypted, size_down_encrypted, timestamp_adjustor)
+
 
     def add_data_point(self, timestamp, userid, app, location_rating, \
             network_type, content_type, bandwidth_up, bandwidth_down, bandwidth_up_encrypted, \
@@ -70,7 +93,7 @@ class TimeLine:
 
         timestamp = timestamp / timestamp_adjustor 
         if timestamp not in self.timeline:
-            self.timeline[timestamp] = HourSummary(timestamp)
+            self.timeline[timestamp] = HourSummary(timestamp, self.table_name)
         self.timeline[timestamp].add_data_point(userid, app, location_rating, \
                 network_type, content_type, bandwidth_up, bandwidth_down, \
                 bandwidth_up_encrypted, bandwidth_down_encrypted)
@@ -78,7 +101,7 @@ class TimeLine:
     def fetch_all_hours(self):
         """Returns a list of all unique times in order """
         cursor = self.connection.cursor()
-        query = "SELECT DISTINCT hour FROM data_by_hour where HOUR >0 ORDER BY hour"
+        query = "SELECT DISTINCT hour FROM "+ self.table_name + " where HOUR >0 ORDER BY hour"
         hours = []
         cursor.execute(query)
         for hour in cursor.fetchall():
@@ -88,7 +111,7 @@ class TimeLine:
     def fetch_match_column(self, filter_column, value, hour):
         """ Given an hour, a column and a value, sum up the bandwidths that match that."""
 
-        query = "SELECT sum(bandwidth_up), sum(bandwidth_down) , sum(bandwidth_up_encrypted), sum(bandwdith_down_encrypted) FROM data_by_hour WHERE hour=" + str(hour) + " AND " + filter_column + " = \"" + str(value) + "\""
+        query = "SELECT sum(bandwidth_up), sum(bandwidth_down) , sum(bandwidth_up_encrypted), sum(bandwdith_down_encrypted) FROM " + self.table_name + " WHERE hour=" + str(hour) + " AND " + filter_column + " = \"" + str(value) + "\""
         cursor = self.connection.cursor()
         cursor.execute(query)
         bandwidth_up = 0
@@ -118,7 +141,7 @@ class TimeLine:
         if filter_columns:
             query += "," + ", ".join(filter_columns)
             group_by += "," + ", ".join(filter_columns)
-        query += (" FROM data_by_hour where hour = " + str(hour) + "  GROUP BY " + group_by)
+        query += (" FROM "+ self.table_name + " where hour = " + str(hour) + "  GROUP BY " + group_by)
         cursor = self.connection.cursor()
         cursor.execute(query)
         for row in cursor.fetchall():
@@ -137,7 +160,7 @@ class TimeLine:
         if filter_columns:
             query += "," + ", ".join(filter_columns)
             group_by += "," + ", ".join(filter_columns)
-        query += " FROM data_by_hour GROUP BY " + group_by
+        query += " FROM " + self.table_name + " GROUP BY " + group_by
         cursor = self.connection.cursor()
 #        print query
         cursor.execute(query)
@@ -150,11 +173,12 @@ class HourSummary:
     
     Structure as a tree in rough order of how likely we are to query just that."""
 
-    def __init__(self, time):
+    def __init__(self, time, table_name):
         self.time = time
         self.total_bandwidth = 0
 
         self.location_tree = Tree() 
+        self.table_name = table_name
 
     def save_to_database(self, time, cursor):
         for user, v in self.location_tree.iteritems():
@@ -166,7 +190,7 @@ class HourSummary:
                                     network_type, content_type, \
                                     bandwidth[0], bandwidth[1], bandwidth[2], bandwidth[3]]
                             values = self.__clean_values(values)
-                            query = "INSERT INTO data_by_hour (" + \
+                            query = "INSERT INTO "+ self.table_name + " (" + \
                                     ", ".join(column_names) + ") Values (" + \
                                     ", ".join(values) + ")" 
 #                            print query

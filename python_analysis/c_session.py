@@ -173,7 +173,7 @@ class CFlow(CLogs):
                 clean_c_str,\
                 int]
 
-        CLogs.__init__(self,"flow_summary.txt", data_format_labels, data_format_types)
+        CLogs.__init__(self,"flow_summary_old2.txt", data_format_labels, data_format_types)
             
 if __name__ == "__main__":
     """ For testing only at this point"""
