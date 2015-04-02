@@ -40,6 +40,20 @@ class CLogs:
 
         f.close()
 
+    def clean_c_string(self, line):
+        if "|" not in line:
+            return line
+        retval = []
+        line = line.split("|")
+        last_item = None
+        for item in line:
+            if item == "*":
+                if last_item != None:
+                    retval.append(last_item)
+            else:
+                last_item = item
+                retval.append(item)
+        return retval
 
 class CSession(CLogs):
 
@@ -92,6 +106,9 @@ class CRate(CLogs):
  
         CLogs.__init__(self, "rate_summary.txt", data_format_labels, data_format_types)
 
+
+
+
 class CFlow(CLogs):
     """ TODO finish
     
@@ -100,7 +117,7 @@ class CFlow(CLogs):
    
         parse_port_tuple = lambda x: x.split(":")
 
-        clean_c_str = lambda x: x.replace("|", "").replace("*", "")
+#        clean_c_str = lambda x: x.replace("|", "").replace("*", "")
  
         data_format_labels = ["userID", \
             "tcp_flows_size", \
@@ -136,7 +153,8 @@ class CFlow(CLogs):
             "user_agent",\
             "host",\
             "content_length",\
-            "total_content_length"]
+            "total_content_length",\
+            "request_url"]
 
         
         data_format_types = [str, \
@@ -167,17 +185,19 @@ class CFlow(CLogs):
                 int,\
                 int,\
                 int,\
-                clean_c_str,\
-                clean_c_str,\
-                clean_c_str,\
-                clean_c_str,\
-                int]
+                self.clean_c_string,\
+                self.clean_c_string,\
+                self.clean_c_string,\
+                self.clean_c_string,\
+                int,\
+                self.clean_c_string,]
 
-        CLogs.__init__(self,"flow_summary_old2.txt", data_format_labels, data_format_types)
+        CLogs.__init__(self,"flow_summary.txt", data_format_labels, data_format_types)
             
 if __name__ == "__main__":
     """ For testing only at this point"""
     flows = CFlow()
     flows.load_data(100)
     for item in flows.data:
+
         print item 

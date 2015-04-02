@@ -2,6 +2,10 @@
 
 import operator
 import c_session 
+import glob
+import sys
+import zipfile
+import json
 
 # This is for merging attributes with a trace (rather than an hour-by-hour timeline; we 
 # convert to such a timeline after)
@@ -21,16 +25,25 @@ import c_session
 #
 #  Treat each user separately
 
-def load_from_file(glob_string, file_name, parse_function, generate_attributes, limit = -1):
+def load_from_file(glob_strings, file_name, parse_function, generate_attributes, add_attribute, limit = -1):
 
+    # list of all locs ordered by time
     user_attributes = {}
 
+    # pending location to finish, optional
     user_attribute_rating = {}
 
+    # Determine unique locations and the times the user is there
     user_last_attribute = {}
 
+    # optional
+    user_top_attributes = {}
     
-    dirs = glob.glob(glob_string)
+    dirs = []
+    for glob_string in glob_strings:
+        dirs.extend(glob.glob(glob_string))
+
+    dirs.sort() # XXX
     for d in dirs:
         if limit != -1:
             if limit== 0:
@@ -41,42 +54,42 @@ def load_from_file(glob_string, file_name, parse_function, generate_attributes, 
 
         if user not in user_attributes:
             user_attributes[user] = []
-            user_attribute_rating = {}
+            user_attribute_rating[user] = {}
 
         try:
             archive = zipfile.ZipFile(d, 'r')
         except:
             print "warning! not a zip file?", d
+            print sys.exc_info()[0]
             continue
 
         last_attr = None
         if user in user_last_attribute:
-            last_attr = user_last_attr[user]
+            last_attr = user_last_attribute[user]
             
         with archive.open(file_name) as f:
             for line in f:
-                parse_function(user_attributes, user_attribute_rating, last_attribute)
+                retval = parse_function(user_attributes, user_attribute_rating, last_attr, line, user)
+                if retval != None:
+                    (user_attributes, user_attribute_rating, last_attr) = retval
+        user_last_attribute[user] = last_attr
 
-        user_last_attribute[user] = last_attribuge
-
-    generate_attributes(user_attributes, user_attribute_rating)
+    (user_attributes, user_attribute_rating, user_top_attributes) = \
+            generate_attributes(user_attributes, user_attribute_rating, user_top_attributes)
 
     timestream = {}
     for user, timeline in user_attributes.iteritems():
         if len(timeline) == 0:
             continue
-        timestream[user] = {}
+        timestream[user] = [] 
 
         for attribute in timeline:
-            add_attribute(user, timestream, attribute)
-        timestream[user].sort(key=operator.attrgetter("time"))
+            timestream = add_attribute(user, timestream, attribute, user_top_attributes)
+        timestream[user].sort(key=operator.attrgetter("begin_time"))
     return timestream
 
-
-    
-
 class AttributeItem:
-    def __init__(self, user, begin_time, end_time, other_data):
+    def __init__(self, user=None, begin_time=None, end_time=None, other_data=None):
         """
         Data to merge with the timeline
 
@@ -86,19 +99,28 @@ class AttributeItem:
         other_data: dict of other data to merge, please prepend with a unique string for the module to avoid overlap
         """
 
-        self.user = user
-        self.begin_time = int(begin_time)
-        self.end_time = int(end_time)
-        self.other_data = other_data
+        if user != None:
+            self.user = user
+            self.begin_time = int(begin_time)
+            self.end_time = int(end_time)
+            self.other_data = other_data
 
 #        l.sort(key=operator.attrgetter("begin_time"))
 
+    def to_string(self):
+        return json.dumps({"user":self.user, "begin_time": self.begin_time, \
+                "end_time": self.end_time, "other_data": self.other_data}) 
+
+    def from_string(self, string):
+        data = json.loads(string)
+        self.user = data["user"]
+        self.begin_time = data["begin_time"]
+        self.end_time = data["end_time"]
+        self.other_data = data["other_data"]
 
 class TimestreamItem:
     def __init__(self, user, time, time_end, data_start_attributes):
-        """
-
-        data_start_attributes: a dict of labels and values
+        """data_start_attributes: a dict of labels and values
         """
         self.user = user
         self.time = int(float(time)*1000)
@@ -130,7 +152,6 @@ class TimestreamItem:
         else:
             return 0
 
-
 def merge(timestream_list, attribute_list):
     """ Assign the appropriate attribute to the timestream.
     
@@ -139,7 +160,6 @@ def merge(timestream_list, attribute_list):
     # I'm sure there's a more pythonic way of doing this...
     attribute_list_ptr = 0
     attribute_list_last = len(attribute_list)
-#    print attribute_list
     for item in timestream_list:
 
         if attribute_list_ptr >= attribute_list_last:
@@ -147,12 +167,12 @@ def merge(timestream_list, attribute_list):
 
         while   attribute_list_ptr < attribute_list_last and \
                 item.match_attribute(attribute_list[attribute_list_ptr]) > 0:
-            print "looking for attribute:", item.time, attribute_list[attribute_list_ptr].begin_time, attribute_list[attribute_list_ptr].end_time
+#            print "no match found:", item.time, attribute_list[attribute_list_ptr].begin_time, attribute_list[attribute_list_ptr].end_time
             attribute_list_ptr += 1
-        print "looking for attribute, mismatch:", item.time, attribute_list[attribute_list_ptr].begin_time, attribute_list[attribute_list_ptr].end_time
 
         if  attribute_list_ptr < attribute_list_last and \
                 item.match_attribute(attribute_list[attribute_list_ptr]) == 0:
+#            print "match found:", item.time, attribute_list[attribute_list_ptr].begin_time, attribute_list[attribute_list_ptr].end_time
             item.merge_attribute(attribute_list[attribute_list_ptr])
 
 def load_timeline(limit=-1):
@@ -176,5 +196,23 @@ def load_timeline(limit=-1):
         timeline[user].append(TimestreamItem(user, time, end_time, data_start_attributes))
 
     for user, user_timeline in timeline.iteritems():
-        user_timeline.sort(key=operator.attrgetter("start_time"))
+        user_timeline.sort(key=operator.attrgetter("time"))
     return timeline
+
+if __name__ == "__main__":
+
+    user_gps = []
+    user_flow = []
+
+    for i in range(10):
+        other_data = {"test_data":i}
+        user_gps.append(AttributeItem( "me", 20 + i*5, 40 + i*5, other_data))
+        other_data_attributes = {"test_data_2":i*2}
+        user_flow.append(TimestreamItem("me", i*0.01, i*0.01+5, other_data_attributes))
+
+    for item in user_flow:
+        print item
+    merge(user_flow, user_gps)
+
+    for item in user_flow:
+        print item.user, item.time, item.time_end, item.data

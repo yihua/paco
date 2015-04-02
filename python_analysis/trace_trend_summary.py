@@ -118,8 +118,8 @@ if args.top_hosts:
     keys_down = sorted(top_downloads.items(), key=operator.itemgetter(1), reverse=True)
 
 
-    f = open("top_upload_hosts.txt", "w")
-    g = open("top_download_hosts.txt", "w")
+    f = open("output_files/top_upload_hosts.txt", "w")
+    g = open("output_files/top_download_hosts.txt", "w")
     for i in range(100):
         if i < len(keys_up):
             print >>f, keys_up[i][0], keys_up[i][1]
@@ -134,7 +134,7 @@ if args.top_hosts:
 #################################################################################
 
 if args.host_user_distribution:
-    f = open("top_upload_hosts.txt")
+    f = open("output_files/top_upload_hosts.txt")
     upload_hosts = {} 
     key_order_up = []
     limit = 10
@@ -147,7 +147,7 @@ if args.host_user_distribution:
             break
     f.close()
 
-    f = open("top_download_hosts.txt")
+    f = open("output_files/top_download_hosts.txt")
     key_order_down = []
     download_hosts = {} 
     limit = 10
@@ -164,7 +164,7 @@ if args.host_user_distribution:
     downloads_users = {}    
     uploads_users = {}    
 
-    f = open("popular_app_distribution.txt", "w")
+    f = open("output_files/popular_app_distribution.txt", "w")
 #    key_order_down = download_hosts.keys()
     print >>f,  " ".join(key_order_down),
 #    key_order_up = upload_hosts.keys()
@@ -212,7 +212,7 @@ if args.host_user_distribution:
         print >>f
     f.close()
 
-    f = open("top_apps_by_user.txt", "w")
+    f = open("output_files/top_apps_by_user.txt", "w")
     for user in top_uploads.keys():
 
         print >>f, "=========================================="
@@ -247,7 +247,7 @@ if args.user_by_time:
 #################################################################################
 
 if args.user_by_host:
-    f = open("top_upload_hosts.txt")
+    f = open("output_files/top_upload_hosts.txt")
     upload_hosts = {} 
     key_order_up = []
     limit = 10
@@ -263,7 +263,7 @@ if args.user_by_host:
     f.close()
         
 
-    f = open("top_download_hosts.txt")
+    f = open("output_files/top_download_hosts.txt")
     key_order_down = []
     download_hosts = {} 
     limit = 10
@@ -278,7 +278,7 @@ if args.user_by_host:
     download_hosts["other"] = 0
     f.close()
 
-    f = open("by_user_host.txt", "w")
+    f = open("output_files/by_user_host.txt", "w")
 #    key_order_down = download_hosts.keys()
     print >>f,  " ".join(key_order_down),
 #    key_order_up = upload_hosts.keys()
