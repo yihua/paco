@@ -126,9 +126,12 @@ class CFlow(CLogs):
             # these include ports
             "clt_ip_tuple",\
             "server_ip_tuple",\
+            "network_type",\
             "packet_count",\
             "app_packet_count",\
             "app_name",\
+            "active_energy",\
+            "passive_energy",\
             "start_time", \
             "tmp_start_time",\
             "first_ul_pl_time", \
@@ -149,22 +152,27 @@ class CFlow(CLogs):
             "ul_rate_payload_h", \
             "dl_rate_payload_h",\
             "http_request_count",\
+            "timestamp_log",\
+            "energy_log",\
             "content_type", \
             "user_agent",\
             "host",\
             "content_length",\
             "total_content_length",\
             "request_url"]
-
         
         data_format_types = [str, \
                 int,\
                 str,\
                 parse_port_tuple,\
                 parse_port_tuple,\
+                # 0 is wifi, 1 is cellulaar
+                int,\
                 int,\
                 int,\
                 str,\
+                float,\
+                float,\
                 float, \
                 float,\
                 float,\
@@ -185,6 +193,8 @@ class CFlow(CLogs):
                 int,\
                 int,\
                 int,\
+                self.clean_c_string,\
+                self.clean_c_string,\
                 self.clean_c_string,\
                 self.clean_c_string,\
                 self.clean_c_string,\

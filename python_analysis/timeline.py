@@ -64,14 +64,15 @@ class TimeLine:
             v.save_to_database(t, cursor)
         self.connection.commit();
 
-    def add_flow_item(self, item):
+    def add_flow_item(self, item, timestamp_adjustor):
         userid = item["userID"]
         is_encrypted =  (len(item["host"]) == 0)
         app = item["app_name"]
 
         size_up = item["total_dl_payload_h"]
         size_down = item["total_ul_payload_h"]
-        content_type = item["content_type"]
+#        content_type = item["content_type"]
+        content_type = "none" 
         time = item["start_time"]
         
         size_up_encrypted = 0
@@ -197,6 +198,7 @@ class HourSummary:
                             try:
                                 cursor.execute(query)
                             except:
+                                print "ERROR!"
                                 print query
 
     def __clean_values(self, l):

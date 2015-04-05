@@ -32,8 +32,8 @@ dns_lookup = {}
 
 for item in flows.data:
 
+    timeline.add_flow_item(item, timestamp_adjustor)
 
-    timeline.add_flow_item(item)
 #    app = app.split(":")[0]
 #    is_ip = False 
 #    try:
@@ -83,20 +83,25 @@ hours = timeline.fetch_all_hours()
 if args.top_hosts:
     top_downloads = defaultdict(int) 
     top_uploads = defaultdict(int) 
+    top_everything = defaultdict(int)
     for hour in hours:
         host_ratings_up = defaultdict(int) 
         host_ratings_down = defaultdict(int)
         for row in timeline.fetch_data(["app"], hour):
 
             (bandwidth_up, bandwidth_down, bandwidth_up_encrypted, bandwidth_down_encrypted, host) = row
+
 #            host_ratings_up[host] += bandwidth_up
 #            host_ratings_down[host] += bandwidth_down
 #            host_ratings_up[host] += bandwidth_up_encrypted
 #            host_ratings_down[host] += bandwidth_down_encrypted
+
             top_uploads[host] += bandwidth_up
             top_downloads[host] += bandwidth_down
             top_uploads[host] += bandwidth_up_encrypted
             top_downloads[host] += bandwidth_down_encrypted
+
+            top_everything[host] += (bandwidth_up + bandwidth_down + bandwidth_up_encrypted + bandwidth_down_encrypted)
 
 #        host_ratings_keys = sorted(host_ratings_up.items(), key=operator.itemgetter(1))
 #        for i in range(min(5, len(host_ratings_keys))):
@@ -116,17 +121,23 @@ if args.top_hosts:
 
     keys_up = sorted(top_uploads.items(), key=operator.itemgetter(1), reverse=True)
     keys_down = sorted(top_downloads.items(), key=operator.itemgetter(1), reverse=True)
-
+    keys_all = sorted(top_everything.items(), key=operator.itemgetter(1), reverse=True)
+    print keys_all
 
     f = open("output_files/top_upload_hosts.txt", "w")
     g = open("output_files/top_download_hosts.txt", "w")
+    h = open("output_files/top_total_hosts.txt", "w")
     for i in range(100):
         if i < len(keys_up):
             print >>f, keys_up[i][0], keys_up[i][1]
         if i < len(keys_down):
             print >>g, keys_down[i][0], keys_down[i][1]
+        if i < len(keys_all):
+            print >>h, keys_all[i][0], keys_all[i][1]
+
     f.close()
     g.close()
+    h.close()
 
 
 #################################################################################
@@ -279,9 +290,13 @@ if args.user_by_host:
     f.close()
 
     f = open("output_files/by_user_host.txt", "w")
+
 #    key_order_down = download_hosts.keys()
+
     print >>f,  " ".join(key_order_down),
+
 #    key_order_up = upload_hosts.keys()
+
     print >>f, " ".join(key_order_up)
     
     for hour in hours:
@@ -289,6 +304,7 @@ if args.user_by_host:
         upload_dict = {}
         download_dict_encrypted = {}
         upload_dict_encrypted = {}
+
 #        download_dict = dict(download_hosts) 
 #        upload_dict = dict(upload_hosts) 
 #        download_dict_encrypted = dict(download_hosts) 
