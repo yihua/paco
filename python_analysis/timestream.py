@@ -118,6 +118,9 @@ class AttributeItem:
         self.end_time = data["end_time"]
         self.other_data = data["other_data"]
 
+    def merge_timeline_item(self, timeline_item):
+        pass
+
 class TimestreamItem:
     def __init__(self, user, time, time_end, data_start_attributes):
         """data_start_attributes: a dict of labels and values
@@ -152,8 +155,11 @@ class TimestreamItem:
         else:
             return 0
 
-def merge(timestream_list, attribute_list):
+
+def merge(timestream_list, attribute_list, reverse=False):
     """ Assign the appropriate attribute to the timestream.
+
+    If reverse is false, assign the network data to the attribute instead.
     
     Both must be sorted."""
 
@@ -167,13 +173,14 @@ def merge(timestream_list, attribute_list):
 
         while   attribute_list_ptr < attribute_list_last and \
                 item.match_attribute(attribute_list[attribute_list_ptr]) > 0:
-#            print "no match found:", item.time, attribute_list[attribute_list_ptr].begin_time, attribute_list[attribute_list_ptr].end_time
             attribute_list_ptr += 1
 
         if  attribute_list_ptr < attribute_list_last and \
                 item.match_attribute(attribute_list[attribute_list_ptr]) == 0:
-#            print "match found:", item.time, attribute_list[attribute_list_ptr].begin_time, attribute_list[attribute_list_ptr].end_time
-            item.merge_attribute(attribute_list[attribute_list_ptr])
+            if not reverse:
+                item.merge_attribute(attribute_list[attribute_list_ptr])
+            else:
+                attribute_list[attribute_list_ptr].merge_timeline_item(item)
 
 def load_timeline(limit=-1):
     flows = c_session.CFlow()
@@ -190,6 +197,10 @@ def load_timeline(limit=-1):
         data_start_attributes["flow_ul_payload"] = item["total_ul_payload_h"] 
         data_start_attributes["flow_content"] = item["content_type"] 
         data_start_attributes["flow_encrypted"] = (len(item["host"]) == 0)
+        data_start_attributes["is_wifi"] = (item["network_type"] == 0) 
+        data_start_attributes["active_energy"] = item["active_energy"]
+        data_start_attributes["passive_energy"] =  item["passive_energy"]
+        data_start_attributes["app_name"] =  item["app_name"]
 
         if user not in timeline:
             timeline[user] = []
