@@ -113,6 +113,8 @@ void PacketAnalyzer::run() {
 			// read application map, screen status and process stat
 			//cout << "get user id" << endl;
 			tmp_folder = getFolder(*it);
+			mTraceCtx.setFolder(*it);
+			mTraceCtx.setPacketNo(0);
 			tmp_folder += "appname";
 			if (tmp_folder.compare(curr_folder) != 0) {
 				curr_folder = tmp_folder;
@@ -135,15 +137,20 @@ void PacketAnalyzer::run() {
 		// pcap link layer header length
 
 		if (pcap_datalink(trace_file) == DLT_LINUX_SLL) {
+            // cellular trace
 			mTraceCtx.setEtherLen(16);
+            mTraceCtx.setNetworkType(Context::NETWORK_TYPE_CELLULAR);
 		} else {
+            // Wi-Fi trace
 			mTraceCtx.setEtherLen(14);
-			if (mConfigParam.isTraceType(CONFIG_PARAM_TRACE_DEV)) {
-				trace_count++;
-				//cout << "Skip Wi-Fi trace: " << *it << endl;
-				pcap_close(trace_file);
-				continue;
-			}
+            mTraceCtx.setNetworkType(Context::NETWORK_TYPE_WIFI);
+            //cout << "WiFi Trace: " << *it << endl;
+			//if (mConfigParam.isTraceType(CONFIG_PARAM_TRACE_DEV)) {
+			//	trace_count++;
+			//	//cout << "Skip Wi-Fi trace: " << *it << endl;
+			//	pcap_close(trace_file);
+			//	continue;
+			//}
 		}
 
 		//cout << "Pcap trace Ethernet header length: " << mTraceCtx.getEtherLen() << endl;

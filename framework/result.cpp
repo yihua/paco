@@ -35,6 +35,19 @@ void Result::addResultToFile(int tag, char *result) {
 	//cout << "********" << tag << "********* write to file" << endl;
 }
 
+void Result::addResultToFile(int tag, string result) {
+        result_tmp[tag] += result;
+        if (result_tmp[tag].size() > MAX_BUF_SIZE) {
+                ofstream o;
+                o.open(result_files[tag].c_str(), ios::out | ios::app);
+                o << result_tmp[tag];
+                o.close();
+                result_tmp[tag].clear();
+                //cout << "********" << tag << "********* write to file" << endl;
+        }
+        //cout << "********" << tag << "********* write to file" << endl;
+}
+
 void Result::flush() {
 	map<int, string>::iterator it;
         for (it = result_files.begin(); it != result_files.end(); it++) {

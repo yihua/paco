@@ -15,6 +15,7 @@
 
 #define USER_SESSION_IDLE 60.0 // s
 #define USER_RATE_BIN 1.0 // s
+#define ENERGY_BIN 1.0 // s
 
 struct string_less {
     bool operator() (const string& lhs, const string& rhs) const {
@@ -27,6 +28,11 @@ public:
 	string userID;
     double start_time;
     double last_packet_time;
+    int last_packet_dir;
+    double energy_bin_start;
+    string last_app;
+    string last_flow_index;
+    bool last_flow_valid;
     double cc_start;
     double last_cc_sample_time;
 
@@ -48,6 +54,10 @@ public:
     bool is_sample;
 
     map<string, TCPFlow*> tcp_flows;
+    map<string, double> appEnergy;
+    map<string, double> appLastTime;
+    map<string, int> appUpBytes;
+    map<string, int> appDownBytes;
     map<string, string> appTimeLog;
     map<string, double> appTime;
 
@@ -58,6 +68,7 @@ public:
     User();
     void resetRateStat(int dir);
     void resetSessionStat();
+    void resetEnergyStat(double currTs);
 };
 
 #endif /* defined(__PacketTraceExplorer__user__) */

@@ -67,6 +67,14 @@ TCPFlow::TCPFlow() {
     last_dupack_time = 0;
     bytes_after_dupack = 0;
 
+    start_compute_energy = false;
+    active_energy = 0.0;
+    passive_energy = 0.0;
+    http_active_energy = 0.0;
+    http_passive_energy = 0.0;
+    last_response_ts = 0.0;
+    
+    networkType = -1;
     //HTTP analysis
     http_request_count = 0;
     content_type = "";
@@ -78,6 +86,11 @@ TCPFlow::TCPFlow() {
     first_host = "";
     content_length = "";
     total_content_length = 0;
+    energy_log = "";
+    http_ts_log = "";
+    
+
+    full_url = "|";
 
     total_bw = 0;
     sample_count = 0;

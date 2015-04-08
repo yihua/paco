@@ -10,10 +10,21 @@
 
 Context::Context() {
     ETHER_HDR_LEN = -1;
+    networkType = -1;
+    currFolder = "";
+    lastFolder = "";
 }
 
 void Context::setEtherLen(int etherlen){
     ETHER_HDR_LEN = etherlen;
+}
+
+int Context::getNetworkType() {
+    return networkType;
+}
+
+void Context::setNetworkType(int type) {
+    this->networkType = type;
 }
 
 int Context::getEtherLen(){
@@ -163,4 +174,25 @@ bool Context::isForeground(string appName) {
 
 bool Context::isScreenOn() {
 	return screenOn;
+}
+
+string Context::getFolder() {
+	return (lastFolder + "\n" + currFolder);
+}
+
+void Context::setFolder(string s) {
+	lastFolder = currFolder;
+	currFolder = s;
+}
+
+void Context::incrPacketNo() {
+	packetNo++;
+}
+
+int Context::getPacketNo() {
+	return packetNo;
+}
+
+void Context::setPacketNo(int i) {
+	packetNo = i;
 }

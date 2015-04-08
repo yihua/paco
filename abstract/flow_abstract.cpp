@@ -6,7 +6,8 @@
  */
 
 #include "abstract/flow_abstract.h"
-
+#include "proto/rrc.h"
+#include <limits>
 FlowAbstract::FlowAbstract() {
 	is_first = true;
 	BURST_THRESHOLD = 1;
@@ -31,6 +32,12 @@ string FlowAbstract::intToString(int x) {
 	sprintf(s, "%d", x);
 	string ss(s);
 	return ss;
+}
+
+string FlowAbstract::doubleToString(double x) {
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(6) << x;
+    return ss.str();
 }
 
 bool FlowAbstract::isClient(in_addr addr) {
@@ -97,22 +104,41 @@ void FlowAbstract::bswapGTP(gtphdr* gtphdr){
 	gtphdr->teid = bswap32(gtphdr->teid);
 }
 
-void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
-	int size = tcpflow->content_type.size() + tcpflow->user_agent.size() +
-				tcpflow->host.size() + tcpflow->content_length.size() + 1000;
+void FlowAbstract::writeTCPFlowStat(Result* result, TCPFlow* tcpflow) {
+    // complete energy_log and http_ts_log
+    // Timestamp for request-response pair
+    
+    if (tcpflow->http_request_count > 0) {
+        tcpflow->http_ts_log += doubleToString(tcpflow->last_response_ts);
+        tcpflow->http_ts_log += "|";
+        
+        if (tcpflow->energy_log.length() != 0) {
+            tcpflow->energy_log += "|";
+        }
+        tcpflow->energy_log += doubleToString(tcpflow->http_active_energy);
+        tcpflow->energy_log += ",";
+        tcpflow->energy_log += doubleToString(tcpflow->http_passive_energy);
+        tcpflow->energy_log += "|";
+    }
+
+	int size = tcpflow->http_ts_log.length() + tcpflow->energy_log.size() +
+                tcpflow->content_type.size() + tcpflow->user_agent.size() +
+				tcpflow->host.size() + tcpflow->content_length.size() + 
+                tcpflow->full_url.size() + 1000;
 	char buf[size];
-	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d %lld %lld %s \
+	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d %d %lld %lld %s %.6lf %.6lf \
 %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
 %lld %lld %lld %lld %.6lf %.6lf %.6lf %lld %lld \
 %lld %lld %lld %lld \
-%d %s %s %s %s %d\n",
+%d %s %s %s %s %s %s %d %s\n",
 		userp->userID.c_str(), userp->tcp_flows.size(),
 		tcpflow->flowIndex.c_str(), 
 		(tcpflow->clt_ip)>>24, (tcpflow->clt_ip)>>16 & 0xFF, (tcpflow->clt_ip)>>8 & 0xFF, (tcpflow->clt_ip) & 0xFF,
 		tcpflow->clt_port,
 		(tcpflow->svr_ip)>>24, (tcpflow->svr_ip)>>16 & 0xFF, (tcpflow->svr_ip)>>8 & 0xFF, (tcpflow->svr_ip) & 0xFF,
 		tcpflow->svr_port,
-		tcpflow->packet_count, tcpflow->app_packet_count, tcpflow->appName.c_str(), 
+		tcpflow->networkType, tcpflow->packet_count, tcpflow->app_packet_count, tcpflow->appName.c_str(), 
+        tcpflow->active_energy, tcpflow->passive_energy,
 		tcpflow->start_time, tcpflow->tmp_start_time,
 		tcpflow->first_ul_pl_time, tcpflow->first_dl_pl_time,
 		tcpflow->last_ul_pl_time, tcpflow->last_dl_pl_time,
@@ -122,10 +148,10 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
     	tcpflow->total_ul_payload_h, tcpflow->total_dl_payload_h,
     	tcpflow->ul_rate_payload, tcpflow->dl_rate_payload,
     	tcpflow->ul_rate_payload_h, tcpflow->dl_rate_payload_h,
-    	tcpflow->http_request_count,
+    	tcpflow->http_request_count, tcpflow->http_ts_log.c_str(), tcpflow->energy_log.c_str(), 
     	tcpflow->content_type.c_str(), tcpflow->user_agent.c_str(),
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
-		tcpflow->total_content_length);
+		tcpflow->total_content_length, tcpflow->full_url.c_str());
 	//cout << "write to string buf: " << string(buf).size() << endl;
 	/*
 	int tmp = string(buf).size();
@@ -160,6 +186,51 @@ void FlowAbstract::writeTCPFlowStat(Result* result, const TCPFlow* tcpflow) {
 	//cout << "write to string buf end" << endl;
 }
 
+double FlowAbstract::writePowerStat(Result* result, User* user, double currTs) {
+	stringstream s("");
+	map<string, double>::iterator it = user->appEnergy.begin();
+	int prec = numeric_limits<long double>::digits10;
+	for (; it != user->appEnergy.end(); ++it) {
+		s << (userp->userID + "\t" + it->first + "\t");
+		s.precision(prec);
+		s << user->energy_bin_start;
+		s << "\t";
+		s << it->second;
+		s << "\t";
+		s << user->appUpBytes[it->first];
+		s <<"\t";	
+		s << user->appDownBytes[it->first];
+		s << "\n";
+	}
+        double tmp_energy = 0.0;
+	if (currTs - user->energy_bin_start > ENERGY_BIN + 0.1) {
+		user->energy_bin_start += ENERGY_BIN;
+		while (user->energy_bin_start < currTs &&
+			user->energy_bin_start < user->appLastTime[user->last_app] + DEMOTE_TIMER) {
+			double bin_dur = 1.0;
+			bin_dur = (currTs - user->energy_bin_start < bin_dur) ? currTs - user->energy_bin_start : bin_dur;
+			bin_dur = (user->appLastTime[user->last_app] + DEMOTE_TIMER - user->energy_bin_start < bin_dur) ? user->appLastTime[user->last_app] + DEMOTE_TIMER - user->energy_bin_start : bin_dur; 
+			if (bin_dur < 0) {
+				cout << "estimate passive wrong!" <<endl;
+			}
+			s << (userp->userID + "\t" + user->last_app + "\t");
+			s.precision(prec);
+			s << user->energy_bin_start;
+			s << "\t";
+			s << bin_dur * PASSIVE_COST;
+			s << "\t0\t0\n";
+			user->energy_bin_start += ENERGY_BIN;
+                        if (bin_dur > 0) {
+				tmp_energy += bin_dur * PASSIVE_COST;
+			}
+		}
+	}
+	
+	result->addResultToFile(5, s.str());
+	user->resetEnergyStat(currTs);
+	return tmp_energy;
+}
+
 void FlowAbstract::writeSessionStat(Result* result, const User* user) {
 	char buf[200];
 	sprintf(buf, "%s %.6lf %.6lf %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld\n",
@@ -180,7 +251,7 @@ void FlowAbstract::writeRateStat(Result* result, const User* user, int dir) {
 		sprintf(buf, "ul %s %.6lf %.6lf %.6lf %lld %lld %lld %lld %lld %lld\n",
 			user->userID.c_str(),
 			user->bw_bin_ul_start_time, user->bw_bin_ul_start_time + USER_RATE_BIN,
-			userp->bw_bin_ul_end_time,
+			user->bw_bin_ul_end_time,
 			user->bw_bin_ul_ip_all, user->bw_bin_ul_ip_payload,
 			user->bw_bin_ul_tcp_all, user->bw_bin_ul_tcp_payload,
 			user->bw_bin_ul_udp_all, user->bw_bin_ul_udp_payload);
@@ -189,7 +260,7 @@ void FlowAbstract::writeRateStat(Result* result, const User* user, int dir) {
 		sprintf(buf, "dl %s %.6lf %.6lf %.6lf %lld %lld %lld %lld %lld %lld\n",
 			user->userID.c_str(),
 			user->bw_bin_dl_start_time, user->bw_bin_dl_start_time + USER_RATE_BIN,
-			userp->bw_bin_dl_end_time,
+			user->bw_bin_dl_end_time,
 			user->bw_bin_dl_ip_all, user->bw_bin_dl_ip_payload,
 			user->bw_bin_dl_tcp_all, user->bw_bin_dl_tcp_payload,
 			user->bw_bin_dl_udp_all, user->bw_bin_dl_udp_payload);
@@ -202,14 +273,17 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 	/*
 	 * first packet ever. set the base time. maintain the time of the last packet.
 	 */
+
+    this->ETHER_HDR_LEN = traceCtx.getEtherLen();
 	if (is_first) {
-		this->ETHER_HDR_LEN = traceCtx.getEtherLen();
+		//this->ETHER_HDR_LEN = traceCtx.getEtherLen();
 		is_first = false;
 		start_time_sec = header->ts.tv_sec;
 		last_time_sec = start_time_sec;
 		end_time_sec = start_time_sec;
 
 		TIME_BASE = (double)(header->ts.tv_sec) + (double)header->ts.tv_usec / (double)USEC_PER_SEC;
+		last_ts = ((double)(header->ts.tv_sec) + (double)header->ts.tv_usec / (double)USEC_PER_SEC);
 	} else {
 		end_time_sec = header->ts.tv_sec;
 	}
@@ -217,7 +291,13 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 	/* timestamp of the packet (unit: second, accuracy: microsecond)
 	*/
 	ts = ((double)(header->ts.tv_sec) + (double)header->ts.tv_usec / (double)USEC_PER_SEC);// - TIME_BASE;
-
+	if (ts - last_ts < 0) {
+		cout << "------------- Packets orders not correct!!! -----------" << endl;
+		cout << traceCtx.getFolder() << endl 
+		     << traceCtx.getPacketNo() << endl << "---------------------------------------" << endl;
+	}
+	last_ts = ts;
+	traceCtx.incrPacketNo();
 	/*
 	 * update device context information
 	 */
@@ -235,6 +315,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		 */
 		ip_hdr = (ip *)(pkt_data + ETHER_HDR_LEN);
 		doIPProcess = true;
+        //if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_ENB))
 	}
 
 	/* For ENB traces, be aware of 802.1Q and GTP headers.
@@ -299,6 +380,10 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		int appIndex = -1;
 		appIndex = *((u_short *)(pkt_data + 6)) & 0xFF;
 
+        //if (traceCtx.getNetworkType() == Context::NETWORK_TYPE_WIFI) {
+         //   cout << "Packet processed" << endl;
+        //}
+
 		/* For user study trace, map the traffic to application name
 		*/
 		string appName("none");
@@ -309,15 +394,18 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 				appName.assign(traceCtx.getAppNameByIndex(appIndex));
 			}
 		}
-
+		
+		int tmpDirection = -1; // 0:up 1:down
 		// cout << appIndex << endl;
 		if ((b1 && !b2) || (!b1 && b2)) { //uplink or downlink
 			if (b1 && !b2) { // uplink
 				ip_clt = ip_hdr->ip_src.s_addr;
 				ip_svr = ip_hdr->ip_dst.s_addr;
+				tmpDirection = 0;
 			} else { //downlink
 				ip_clt = ip_hdr->ip_dst.s_addr;
 				ip_svr = ip_hdr->ip_src.s_addr;
+				tmpDirection = 1;
 			}
 		} else if (b1 && b2) { //ignore 1, both are client IP
 			//cout << "ignore 1" << endl;
@@ -343,7 +431,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			userp = &(users[intToString((unsigned int)ip_clt)]);
 			userp->userID.assign(intToString((unsigned int)ip_clt));
 		}
-
+		
 		if (userp->start_time < 0) {
 			//init
 			userp->start_time = ts;
@@ -375,7 +463,63 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
     			userp->session_dl_ip_payload += ip_payload_len;
     		}
     	}
-
+		// Power Analysis
+		
+		if (userp->appUpBytes.find(appName) == userp->appUpBytes.end()) {
+			userp->appUpBytes[appName] = 0;
+			userp->appDownBytes[appName] = 0;
+			userp->appLastTime[appName] = 0;
+			userp->appEnergy[appName] = 0;
+		}
+		double pktEnergy = 0.0, passiveEnergy = 0.0;
+        if (traceCtx.getNetworkType() == Context::NETWORK_TYPE_CELLULAR) {
+            // cellular power
+    		if (userp->last_packet_dir < 0) {
+	    		userp->last_packet_dir = tmpDirection;
+		    	userp->last_app = appName;
+			    userp->energy_bin_start = ts;
+    			userp->appLastTime[appName] = ts;
+    			if (tmpDirection == 0)
+    				userp->appUpBytes[appName] = ip_payload_len;
+    			else if (tmpDirection == 1)
+    				userp->appDownBytes[appName] = ip_payload_len;
+    			cout << "*********** Initialized: user " << userp->userID << "**************" << endl;
+    		} else {
+    			if (ts - userp->energy_bin_start > ENERGY_BIN) {
+    				pktEnergy = (userp->energy_bin_start + ENERGY_BIN - userp->last_packet_time) * ((1-userp->last_packet_dir)*ACTIVE_COST_UP + userp->last_packet_dir*ACTIVE_COST_DOWN);
+    				if (pktEnergy < 0) {
+    					cout << "last energy estimate wrong!" << endl;
+    					pktEnergy = 0.0;
+    				}
+    				userp->appEnergy[userp->last_app] += pktEnergy;
+    				passiveEnergy = writePowerStat(result, userp, ts);
+		} else {
+    				pktEnergy = (ts - userp->last_packet_time) *
+    						((1-userp->last_packet_dir)*ACTIVE_COST_UP + userp->last_packet_dir*ACTIVE_COST_DOWN);
+    				if (pktEnergy < 0) {
+    					cout.precision(13);
+    					cout << "middle energy estimate wrong!"
+    						<< userp->energy_bin_start << "\t"
+    						<< userp->last_packet_time << "\t"
+    						<< ts << "\t"
+    						<< ts - userp->last_packet_time << "\t"
+    						 <<   (1-userp->last_packet_dir)*ACTIVE_COST_UP + userp->last_packet_dir*ACTIVE_COST_DOWN << endl;
+    					pktEnergy = 0.0;
+                    }
+				    userp->appEnergy[userp->last_app] += pktEnergy;
+			    }
+    			userp->last_packet_dir = tmpDirection;
+    			userp->last_app = appName;
+    			userp->appLastTime[appName] = ts;
+    			if (tmpDirection == 0)
+                    userp->appUpBytes[appName] += ip_payload_len;
+                else if (tmpDirection == 1)
+                    userp->appDownBytes[appName] += ip_payload_len;
+		    }
+        } else {
+            // Wifi power
+        }
+		
 		/* TCP Concurrency statistics*/
 		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_SPGW) &&
 			ts - userp->last_cc_sample_time > CC_SAMPLE_PERIOD &&
@@ -415,6 +559,19 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 
 				if (userp->cc_start - flow_it->second->last_tcp_ts > FLOW_MAX_IDLE_TIME) {
 					//cout << packet_count << " write" << endl;
+                    if (flow_it->second->flowIndex.compare(userp->last_flow_index) == 0) {
+                        if (userp->last_flow_valid) {
+                            if (flow_it_last != userp->tcp_flows.end()) {
+                                userp->tcp_flows[userp->last_flow_index]->active_energy += pktEnergy;
+                                userp->tcp_flows[userp->last_flow_index]->passive_energy += passiveEnergy;
+                            } else {
+                                cout << "Flow not found, cannot add energy!!!!" << endl;
+                            }
+                        }
+                        userp->last_flow_valid = false;
+                    }
+
+
 					writeTCPFlowStat(result, flow_it->second);
 					//cout << packet_count << " erase" << endl;
 					userp->tcp_flows.erase(flow_it++);
@@ -422,6 +579,16 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					//flow_it++;
 				} else if (userp->cc_start > flow_it->second->last_tcp_ts && 
 					flow_it->second->flow_finish) {
+                    if (flow_it->second->flowIndex.compare(userp->last_flow_index) == 0) {
+                        if (userp->last_flow_valid) {       
+                            if (flow_it_last != userp->tcp_flows.end()) {
+                                userp->tcp_flows[userp->last_flow_index]->active_energy += pktEnergy;
+                                userp->tcp_flows[userp->last_flow_index]->passive_energy += passiveEnergy;
+                            } else {
+                                cout << "Flow not found, cannot add energy!!!!" << endl;                                          }                                                                                                 } 
+                        userp->last_flow_valid = false;
+                    }
+
 					writeTCPFlowStat(result, flow_it->second);
 					userp->tcp_flows.erase(flow_it++);
 				} else {
@@ -553,6 +720,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					 */
 
 					//flow_index = port_clt * (((uint64)1) << 32) + ip_clt;
+                    //Get flow index
 					if (ip_clt < ip_svr)
 						flow_index = intToString(ip_clt) + ":" + intToString(port_clt) + "|" +
 										intToString(ip_svr) + ":" + intToString(port_svr);
@@ -565,14 +733,16 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					//char buf[50];
 					//sprintf(buf, "%.6f %" PRIu64 "", ts, flow_index);
 					//sprintf(buf, "%.6f", ts);
-
+                    bool flow_valid = false;
 					if (flow_it_tmp != userp->tcp_flows.end()) {
 						flow = userp->tcp_flows[flow_index];
+                        flow_valid = true;
 						//found flow
 					//} else {
 					} else if (flow_it_tmp == userp->tcp_flows.end() && (tcp_hdr->syn) != 0 && (b1 && !b2)) {
 						//no flow found, now uplink SYN packet
 					//	cout << "new flow: " << appName << " " << flow_index <<  endl;
+                        flow_valid = true;
 						userp->tcp_flows[flow_index] = new TCPFlow();
 						flow = userp->tcp_flows[flow_index];
 
@@ -589,6 +759,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						flow->end_time = ts;
 						flow->last_tcp_ts = ts;
 						flow->tmp_start_time = -1;
+                        flow->networkType = traceCtx.getNetworkType();
 
 
 						// new burst/background notification
@@ -650,8 +821,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 							(tcp_hdr->fin) == 0 && 
 							(tcp_hdr->rst) == 0) {
 							userp->tcp_flows[flow_index] = new TCPFlow();
+                            flow_valid = true;
 							flow = userp->tcp_flows[flow_index];
-
 							flow->clt_ip = ip_clt; //init a flow
 							//flow_count++;
 
@@ -665,11 +836,26 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 							flow->start_time = -1.0;
 							flow->end_time = ts;
 							flow->last_tcp_ts = ts;
+                            flow->networkType = traceCtx.getNetworkType();
 						} else {
 							break;
 						}
 					}
-
+                    
+                    // flow level power analysis, note that the pktEnergy and passiveEnergy are for the last packet for the same user
+                    flow_it_last = userp->tcp_flows.find(userp->last_flow_index);
+                    if (userp->last_flow_valid) {
+                        if (flow_it_last != userp->tcp_flows.end()) {
+                            userp->tcp_flows[userp->last_flow_index]->active_energy += pktEnergy;
+                            userp->tcp_flows[userp->last_flow_index]->passive_energy += passiveEnergy;
+                        } else {
+                            cout << "Flow not found, cannot add energy!!!!" << endl;
+                        }
+                    }
+                    userp->last_flow_index = flow_index;
+                    userp->last_flow_valid = flow_valid;
+                    
+                    
 					//flow = &client_flows[flow_index];
 					flow->end_time = ts;
 					flow->packet_count++; //should be before the SYN-RTT analysis
@@ -693,7 +879,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						//writeTCPFlowStat(result, flow);
 						//userp->tcp_flows.erase(flow_index);
 						//client_flows.erase(flow_index);
-						break;
+						//break;
 					} else if (!(flow->flow_finish)) { // all packets of this flow goes to here except for the FIN and RST packets
 						if (b1 && !b2) { // uplink:0
 							if (payload_len > 0) {
@@ -807,16 +993,76 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                         //has TCP payload
                         payload = (char *)((char *)tcp_hdr + BYTES_PER_32BIT_WORD * tcp_hdr->doff);
                         payload_str = string(payload);
+
+                        // request-response level power analysis
+                        if (flow->start_compute_energy) {
+                            flow->http_active_energy += pktEnergy;
+                            flow->http_passive_energy += passiveEnergy;
+                        }
                         if (b1 && !b2) {
                             //UPLINK
-                            if (payload_str.find("GET ") == 0 || payload_str.find("HEAD ") == 0 ||
+                            // process HTTP request
+                            //cout << "debug1" << endl;
+                            flow->requestSeqIt = flow->requestSeq.find(tcp_hdr->seq);
+                            //cout << "debug2" << endl;
+                            flow->last_response_ts = ts;
+                            if ((payload_str.find("GET ") == 0 || payload_str.find("HEAD ") == 0 ||
                                 payload_str.find("POST ") == 0 || payload_str.find("PUT ") == 0 ||
                                 payload_str.find("DELETE ") == 0 || payload_str.find("TRACE ") == 0 ||
                                 payload_str.find("OPTIONS ") == 0 || payload_str.find("CONNECT ") == 0 ||
-                                payload_str.find("PATCH ") == 0) {
+                                payload_str.find("PATCH ") == 0) && 
+                                flow->requestSeqIt == flow->requestSeq.end()) {
                                 //uplink HTTP request
+                                //
+                                flow->requestSeq[tcp_hdr->seq] = tcp_hdr->ack_seq;
+
                                 flow->http_request_count++;
                                 string method, uri, host;
+                                                               
+                                // Timestamp for request-response pair
+                                if (flow->http_ts_log.length() != 0) {
+                                    flow->http_ts_log += doubleToString(flow->last_response_ts);
+                                    flow->http_ts_log += "|";
+                                }
+
+                                flow->http_ts_log += doubleToString(ts);
+                                flow->http_ts_log += ",";
+                                flow->last_response_ts = ts;
+
+                                // record energy for last request-response pair
+                                if (flow->start_compute_energy) {
+                                    if (flow->energy_log.length() != 0) {
+                                        flow->energy_log += "|";
+                                    }
+                                    flow->energy_log += doubleToString(flow->http_active_energy);
+                                    flow->energy_log += ",";
+                                    flow->energy_log += doubleToString(flow->http_passive_energy);
+                                    flow->http_active_energy = 0.0;
+                                    flow->http_passive_energy = 0.0;
+                                }
+                                flow->start_compute_energy = true;
+
+                                // Position: find first line
+                                // Then find first element
+
+                                int pos = 0, next_pos, pos1, pos2;
+                                next_pos = payload_str.find('\n', 0);
+
+                                if (next_pos > 0 ) {
+                                    string first_line = payload_str.substr(0, next_pos);
+                                    
+                                    pos1 = first_line.find(' ', 0);
+                                    if (pos1 > 0) {
+                                        method = first_line.substr(0, pos1);
+                                        pos2 = first_line.find(' ', pos1+1);
+                                        if (pos2 > 0) {
+                                            uri = first_line.substr(pos1+1, pos2-pos1-1);
+                                            flow->full_url += uri;
+                                            flow->full_url += "|";
+                                        }
+                                    }
+                                }
+
                                 /*
                                 if (appName.find("chrome", 0) >= 0 && appName.find("chrome", 0) < appName.length()) {
                                 	int pos = 0, next_pos;
@@ -926,10 +1172,12 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                         	//if (appName.find("chrome", 0) >= 0 && appName.find("chrome", 0) < appName.length()) {
                         	//	userp->last_http_time = ts;
                         	//}
-                            if (payload_str.find("HTTP/1.1 200 OK") == 0 || payload_str.find("HTTP/1.0 200 OK") == 0) {
+                            flow->last_response_ts = ts;
+                            flow->responseSeqIt = flow->responseSeq.find(tcp_hdr->seq);
+                            if ((payload_str.find("HTTP/1.1 200 OK") == 0 || payload_str.find("HTTP/1.0 200 OK") == 0) && flow->responseSeqIt == flow->responseSeq.end()) {
                                 //downlink HTTP 200 OK
 
-
+                                flow->responseSeq[tcp_hdr->seq] = tcp_hdr->ack_seq;
                                 start_pos = payload_str.find("Content-Type: ");
                                 end_pos = payload_str.find("\r\n", start_pos);
                                 if (start_pos != string::npos && end_pos > start_pos + 14) {

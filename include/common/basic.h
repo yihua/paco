@@ -19,6 +19,7 @@ typedef unsigned long long uint64;
    #include <sys/endian.h>
    u_short bswap16(u_short);
    u_int bswap32(u_int);
+   //string doubleToString(double);
 #else
    #include <endian.h>
    #define bswap16(x) __bswap_16 (x)

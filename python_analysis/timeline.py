@@ -23,8 +23,6 @@ import string
 # 
 ##############################################################################
 
-column_names = ["hour", "userid", "app", "location_rating", "network_type", \
-        "content_type", "bandwidth_up", "bandwidth_down", "bandwidth_up_encrypted", "bandwidth_down_encrypted"]
 
 def Tree():
     """ Is there a better way of making a tree?
@@ -36,11 +34,17 @@ class TimeLine:
 
     Mostly a wrapper for HourSummary."""
 
-    def __init__(self, table_name="data_by_hour"): # make unique for each test
+    def __init__(self, table_name="data_by_hour", column_names = None): # make unique for each test
         self.timeline = {} 
         self.connection = MySQLdb.connect('localhost', config.mysql_username, \
                 config.mysql_password, config.root_database)
         self.table_name = table_name
+
+        if column_names != None:
+            self.column_names = column_names
+        else:
+            self.column_names = ["hour", "userid", "app", "location_rating", "network_type", \
+            "content_type", "bandwidth_up", "bandwidth_down", "bandwidth_up_encrypted", "bandwidth_down_encrypted"]
 
     def __del__(self):
         self.connection.close()
@@ -74,6 +78,8 @@ class TimeLine:
 #        content_type = item["content_type"]
         content_type = "none" 
         time = item["start_time"]
+        energy_active = item["active_energy"]
+        energy_passive = item["passive_energy"]
         
         size_up_encrypted = 0
         size_down_encrypted = 0
@@ -84,20 +90,21 @@ class TimeLine:
             size_up = 0
             size_down = 0
 
-        self.add_data_point(time, userid, app, -1, -1, content_type, size_up, size_down, size_up_encrypted, size_down_encrypted, timestamp_adjustor)
+        self.add_data_point(time, userid, app, -1, -1, content_type, size_up, size_down, size_up_encrypted, size_down_encrypted, energy_active, energy_passive, timestamp_adjustor)
 
 
-    def add_data_point(self, timestamp, userid, app, location_rating, \
-            network_type, content_type, bandwidth_up, bandwidth_down, bandwidth_up_encrypted, \
-            bandwidth_down_encrypted, timestamp_adjustor = 1):
+    def add_data_point(self, timestamp, row1, row2, row3, \
+            row4, row5, bandwidth_up, bandwidth_down, bandwidth_up_encrypted, \
+            bandwidth_down_encrypted, energy_active, energy_passive, timestamp_adjustor = 1):
         """Figure out what timeline entry the data should be added to and add it there. """
 
         timestamp = timestamp / timestamp_adjustor 
         if timestamp not in self.timeline:
-            self.timeline[timestamp] = HourSummary(timestamp, self.table_name)
-        self.timeline[timestamp].add_data_point(userid, app, location_rating, \
-                network_type, content_type, bandwidth_up, bandwidth_down, \
-                bandwidth_up_encrypted, bandwidth_down_encrypted)
+            self.timeline[timestamp] = HourSummary(timestamp, self.table_name, self.column_names)
+        self.timeline[timestamp].add_data_point(row1, row2, row3, \
+                row4, row5, bandwidth_up, bandwidth_down, \
+                bandwidth_up_encrypted, bandwidth_down_encrypted, \
+                energy_active, energy_passive)
 
     def fetch_all_hours(self):
         """Returns a list of all unique times in order """
@@ -174,25 +181,25 @@ class HourSummary:
     
     Structure as a tree in rough order of how likely we are to query just that."""
 
-    def __init__(self, time, table_name):
+    def __init__(self, time, table_name, column_names):
         self.time = time
         self.total_bandwidth = 0
 
         self.location_tree = Tree() 
         self.table_name = table_name
+        self.column_names = column_names
 
     def save_to_database(self, time, cursor):
-        for user, v in self.location_tree.iteritems():
-            for app, v2 in v.iteritems():
-                for location_rating, v3 in v2.iteritems():
-                    for content_type, v4 in v3.iteritems():
-                        for network_type, bandwidth in v4.iteritems():
-                            values = [time, user, app, location_rating, \
-                                    network_type, content_type, \
-                                    bandwidth[0], bandwidth[1], bandwidth[2], bandwidth[3]]
+        for row1, v in self.location_tree.iteritems():
+            for row2, v2 in v.iteritems():
+                for row3, v3 in v2.iteritems():
+                    for row4, v4 in v3.iteritems():
+                        for row5, data in v4.iteritems():
+                            values = [time, row1, row2, row3, row4, row5,\
+                                    data[0], data[1], data[2], data[3]]
                             values = self.__clean_values(values)
                             query = "INSERT INTO "+ self.table_name + " (" + \
-                                    ", ".join(column_names) + ") Values (" + \
+                                    ", ".join(self.column_names) + ") Values (" + \
                                     ", ".join(values) + ")" 
 #                            print query
                             try:
@@ -219,18 +226,20 @@ class HourSummary:
         return ret_l
 
 
-    def add_data_point(self, userid, app, location_rating, network_type, \
-            content_type, bandwidth_up, bandwidth_down,  bandwidth_up_encrypted, bandwidth_down_encrypted):
+    def add_data_point(self, row1, row2, row3, row4, row5,  
+            content_type, bandwidth_up, bandwidth_down,  bandwidth_up_encrypted, bandwidth_down_encrypted, data_active, data_tail):
         """ Each parameter is another 'level' of the tree, bandwidth is additive."""
 
         # We need to convert the leaves to ints rather than dicts 
-        if (network_type) not in self.location_tree[userid][app][location_rating][content_type]:
-            self.location_tree[userid][app][location_rating][content_type][network_type] = [0, 0, 0, 0]
+        if (row5) not in self.location_tree[row1][row2][row3][row4]:
+            self.location_tree[row1][row2][row3][row4][row5] = [0, 0, 0, 0, 0, 0]
 
-        self.location_tree[userid][app][location_rating][content_type][network_type][1] += bandwidth_down
-        self.location_tree[userid][app][location_rating][content_type][network_type][0] += bandwidth_up
-        self.location_tree[userid][app][location_rating][content_type][network_type][3] += bandwidth_down_encrypted
-        self.location_tree[userid][app][location_rating][content_type][network_type][2] += bandwidth_up_encrypted
+        self.location_tree[row1][row2][row3][row4][row5][1] += bandwidth_down
+        self.location_tree[row1][row2][row3][row4][row5][0] += bandwidth_up
+        self.location_tree[row1][row2][row3][row4][row5][3] += bandwidth_down_encrypted
+        self.location_tree[row1][row2][row3][row4][row5][2] += bandwidth_up_encrypted
+        self.location_tree[row1][row2][row3][row4][row5][4] += data_active 
+        self.location_tree[row1][row2][row3][row4][row5][5] += data_tail 
 
 if __name__ == "__main__":
     """ For testing only at this point"""

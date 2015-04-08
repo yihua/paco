@@ -58,6 +58,8 @@ class AnalyzeAppUrls:
 
         self.analyze_url = {}
 
+        self.analyze_content_type = {}
+
         self.up_all = 0
         self.down_all = 0
         self.count_all = 0
@@ -98,6 +100,21 @@ class AnalyzeAppUrls:
             self.analyze_url[host] = SubUrl(host)
         self.analyze_url[host].add_url(url, up, energy, flow_length)
         self.analyze_url[host].add_extra_host(full_host)
+
+    def add_content_type(self, content_type, up, down, energy):
+        content_type = content_type.split("/")
+        if len(content_type) != 2:
+            category = content_type[0]
+            subcategory = "none"
+        else:
+            (category, subcategory) = content_type
+        if category not in self.analyze_content_type:
+            self.analyze_content_type[category] = {}
+        if subcategory not in self.analyze_content_type[category]:
+            self.analyze_content_type[category][subcategory] = ContentType()
+        self.analyze_content_type[category][subcategory].add_content_type(up+ down, energy)
+        
+
 
     def printme(self):
 
@@ -167,6 +184,14 @@ class AnalyzeAppUrls:
             
             self.analyze_url[k].printme()
 
+        self.print_content()
+
+    def print_content(self):
+        for k, v in self.analyze_content_type.iteritems():
+            print "****************", k, "*******************"
+            for k2, v2 in v.iteritems():
+                v2.printline(k2)
+
 class AnalyzeHostTrends:
 
     def __init__(self):
@@ -224,12 +249,19 @@ class AnalyzeHostTrends:
 
 class ContentType:
     def __init__(self):
-        self.sizes = defaultdict(list)
+        self.sizes = []
+        self.energy = []
 
-    def add_content_type(self, content_type, size):
-        self.sizes[content_type].append(size)
 
-    
+    def add_content_type(self, size, energy):
+        self.sizes.append(size)
+        self.energy.append(size)
+
+    def printline(self, k2):
+        sizes = numpy.mean(self.sizes)
+        energy = numpy.mean(self.energy)
+        print "\t", k2, sizes, energy
+
 
 class SubUrl:
     def __init__(self, host):
@@ -407,15 +439,15 @@ f = open("output_files/top_total_hosts.txt")
 limit = 25 
 for line in f:
     line = line.split()[0]
-    upload_hosts.append(line)
+    test_hosts.append(line)
     limit -= 1
     if limit == 0:
         break
 f.close()
 
-test_hosts = set()
-test_hosts.update(download_hosts)
-test_hosts.update(upload_hosts)
+#test_hosts = set()
+#test_hosts.update(download_hosts)
+#test_hosts.update(upload_hosts)
 
 flows = c_session.CFlow()
 
@@ -430,6 +462,8 @@ appname_analysis = {}
 sub_url_analysis = {}
 
 host_analysis = {}
+
+all_analysis = AnalyzeAppUrls("all")
 
 for item in flows.data:
     userid = item["userID"]
@@ -464,7 +498,6 @@ for item in flows.data:
     else:
         end_time = item["last_dl_pl_time"]
 
-    print content_type
     flow_length = end_time - start_time
 
     if len(urls) > 0:
@@ -476,7 +509,7 @@ for item in flows.data:
     if app in browser_list or app == "none":
         continue
     
-    if len(urls) != len(hosts) or len(urls) != len(energy_list):
+    if len(urls) != len(hosts) or len(urls) != len(energy_list) or len(urls) != len(content_type):
         if "fonts.googleapis.com" in hosts and len(urls) == 3:
             urls = [urls[0] + "|" + urls[1], ""]
         else:
@@ -497,8 +530,11 @@ for item in flows.data:
         energy_down, energy_up = energy_list[i].split(",")
         energy = float(energy_down) + float(energy_up)
 
+        mimetype = content_type[i]
+
         full_host = host
         host_root = host.split(".")
+
         if len(host_root) >= 2:
             if len(host_root) == 4:
                 try:
@@ -522,8 +558,13 @@ for item in flows.data:
         appname_analysis[app].add_sub_url(full_host, size_up, size_down, energy, url, flow_length)
         host_analysis[host].add_sub_url(full_host, size_up, size_down, energy, url, app, flow_length)
 
+        appname_analysis[app].add_content_type(mimetype, size_up, size_down, energy)
+        all_analysis.add_content_type(mimetype, size_up, size_down, energy)
+
 print "================================================"
 print "START"
+
+all_analysis.print_content()
 
 for k, v in appname_analysis.iteritems():
     v.printme()

@@ -47,6 +47,8 @@ public:
     int last_payload, last_payload_h;
     int last_pl_dir;
 
+    int networkType;
+
     double dl_time, ul_time;
 
     double end_time;
@@ -91,6 +93,10 @@ public:
     double last_dupack_time;
     u_int bytes_after_dupack;
 
+    bool start_compute_energy;
+    double active_energy, passive_energy;
+    double http_active_energy, http_passive_energy;
+    double last_response_ts;
     //HTTP analysis
     u_short http_request_count;
     string first_content_type, first_user_agent, first_host; 
@@ -99,6 +105,16 @@ public:
     string host;
     string content_length;
     u_int total_content_length;
+    string energy_log;
+    string http_ts_log;
+
+    string full_url;
+    
+    map<u_int, u_int> requestSeq;
+    map<u_int, u_int>::iterator requestSeqIt;
+
+    map<u_int, u_int> responseSeq;
+    map<u_int, u_int>::iterator responseSeqIt;
 
     string userID;
     string appName;

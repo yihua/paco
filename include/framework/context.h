@@ -14,9 +14,13 @@
 
 class Context {
 private:
+	string currFolder, lastFolder;
+	int packetNo;
+
 	vector<string> appNameMap;
 	string userID;
 	int ETHER_HDR_LEN;
+    int networkType;
 	ifstream screen_context, proc_context;
 	string screen_line, proc_line;
 	double screen_time, proc_time;
@@ -33,8 +37,13 @@ private:
 	bool isProcessLine(string s);
 	bool parseScreenOn(string s);
 public:
+    const static int NETWORK_TYPE_WIFI = 0;
+    const static int NETWORK_TYPE_CELLULAR = 1;
+
     Context();
     void setEtherLen(int etherlen);
+    int getNetworkType();
+    void setNetworkType(int type);
     void setUserID(string s);
     int getEtherLen();
     vector<string> getAppNameMap();
@@ -50,6 +59,12 @@ public:
     void updateFile(string s);
     bool isScreenOn();
     bool isForeground(string appName);
+    string getFolder();
+    void setFolder(string s);
+    
+    void incrPacketNo();
+    int getPacketNo();
+    void setPacketNo(int i);
 };
 
 #endif /* _PACO_CONTEXT_H */

@@ -119,9 +119,14 @@ class AttributeItem:
         self.other_data = data["other_data"]
 
     def merge_timeline_item(self, timeline_item):
+        for k, v in timeline_item.data.iteritems():
+            if k not in self.other_data:
+                self.other_data[k] = []
+            self.other_data[k].append(v)
         pass
 
 class TimestreamItem:
+
     def __init__(self, user, time, time_end, data_start_attributes):
         """data_start_attributes: a dict of labels and values
         """
@@ -155,7 +160,6 @@ class TimestreamItem:
         else:
             return 0
 
-
 def merge(timestream_list, attribute_list, reverse=False):
     """ Assign the appropriate attribute to the timestream.
 
@@ -171,20 +175,24 @@ def merge(timestream_list, attribute_list, reverse=False):
         if attribute_list_ptr >= attribute_list_last:
             break
 
+        
         while   attribute_list_ptr < attribute_list_last and \
                 item.match_attribute(attribute_list[attribute_list_ptr]) > 0:
+#            print "not yet...", attribute_list[attribute_list_ptr].begin_time, item.time
             attribute_list_ptr += 1
+#        print "maybe...", attribute_list[attribute_list_ptr].begin_time, item.time
 
         if  attribute_list_ptr < attribute_list_last and \
                 item.match_attribute(attribute_list[attribute_list_ptr]) == 0:
             if not reverse:
                 item.merge_attribute(attribute_list[attribute_list_ptr])
             else:
+#                print "merging!", attribute_list[attribute_list_ptr].begin_time, item.time
                 attribute_list[attribute_list_ptr].merge_timeline_item(item)
 
 def load_timeline(limit=-1):
     flows = c_session.CFlow()
-    flows.load_data(limit=-1)
+    flows.load_data(limit)
 
     timeline = {} 
     for item in flows.data:
@@ -201,6 +209,11 @@ def load_timeline(limit=-1):
         data_start_attributes["active_energy"] = item["active_energy"]
         data_start_attributes["passive_energy"] =  item["passive_energy"]
         data_start_attributes["app_name"] =  item["app_name"]
+        data_start_attributes["content_type"] = item["content_type"]
+        data_start_attributes["request_url"] = item["request_url"]
+
+        if "facebook" in item["app_name"]:
+            print "energy:", time, item["active_energy"], item["passive_energy"], item["total_dl_payload_h"], item["total_ul_payload_h"]
 
         if user not in timeline:
             timeline[user] = []
@@ -215,15 +228,31 @@ if __name__ == "__main__":
     user_gps = []
     user_flow = []
 
-    for i in range(10):
-        other_data = {"test_data":i}
-        user_gps.append(AttributeItem( "me", 20 + i*5, 40 + i*5, other_data))
-        other_data_attributes = {"test_data_2":i*2}
-        user_flow.append(TimestreamItem("me", i*0.01, i*0.01+5, other_data_attributes))
+#    for i in range(10):
+#        other_data = {"test_data":i}
+#        user_gps.append(AttributeItem( "me", 20 + i*5, 40 + i*5, other_data))
+#        other_data_attributes = {"test_data_2":i*2}
+#        user_flow.append(TimestreamItem("me", i*0.01, i*0.01+5, other_data_attributes))
 
-    for item in user_flow:
-        print item
-    merge(user_flow, user_gps)
+    other_data = {"test_data":"a"}
+    user_gps.append(AttributeItem( "me", 5*1000, 10*1000, other_data))
+    other_data = {"test_data":"b"}
+    user_gps.append(AttributeItem( "me", 15*1000, 20*1000, other_data))
+    other_data = {"test_data":"c"}
+    user_gps.append(AttributeItem( "me", 25*1000, 30*1000, other_data))
+    other_data = {"test_data":"d"}
+    user_gps.append(AttributeItem( "me", 35*1000, 40*1000, other_data))
 
-    for item in user_flow:
-        print item.user, item.time, item.time_end, item.data
+    other_data_attributes = {"test_data_2":"in"}
+    user_flow.append(TimestreamItem("me", 12, 21, other_data_attributes))
+    other_data_attributes = {"test_data_2":"in"}
+    user_flow.append(TimestreamItem("me", 15, 18, other_data_attributes))
+    other_data_attributes = {"test_data_2":"in2"}
+    user_flow.append(TimestreamItem("me", 19, 20, other_data_attributes))
+
+    merge(user_flow, user_gps, reverse=True)
+
+    for item in user_gps:
+        print item.user, item.begin_time, item.end_time, item.other_data
+#    for item in user_flow:
+#        print item.user, item.time, item.time_end, item.data

@@ -71,6 +71,7 @@ class FlowAbstract: public TrafficAbstract{
 	u_short payload_len, tcp_whole_len;
 
 	double ts;
+	double last_ts;
 	double last_prune_time;
 	double last_sample_time;
 	double ack_delay;
@@ -93,7 +94,7 @@ class FlowAbstract: public TrafficAbstract{
 	map<string, User> users;
 	map<string, User>::iterator user_it;
 	map<string, TCPFlow*>::iterator flow_it;
-	map<string, TCPFlow*>::iterator flow_it_tmp;
+	map<string, TCPFlow*>::iterator flow_it_tmp, flow_it_last;
 
 	map<u_int, u_int> cip;
 	map<u_int, u_int> sip;
@@ -120,10 +121,11 @@ class FlowAbstract: public TrafficAbstract{
 	void printAddr(in_addr addr1, in_addr addr2);
 
     // Write complete data on TCP flow to a file
-	void writeTCPFlowStat(Result* result, const TCPFlow* tcpflow);
+	void writeTCPFlowStat(Result* result, TCPFlow* tcpflow);
     // Summary of user session: write user struct to file
 	void writeSessionStat(Result* result, const User* user);
 	void writeRateStat(Result* result, const User* user, int dir);
+	double writePowerStat(Result* result, User* user, double currTs);
 	string traceType;
 
 	int ETHER_HDR_LEN;
@@ -139,6 +141,7 @@ public:
 	//void bswapDNS(struct DNS_HEADER* dnshdr);
 
     string intToString(int x);
+    string doubleToString(double x);
 
 	void configTraceType(string type);
 	string getTraceType();

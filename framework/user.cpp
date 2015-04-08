@@ -12,11 +12,16 @@ User::User() {
 	//cout << "user init" << endl;
     start_time = -1.0;
     last_packet_time = 0;
+    last_packet_dir = -1;
     tcp_flows.clear();
     last_http_time = 0;
     http_req_stat = new stringstream();
     http_req_stat->str("");
     http_req_stat_size = 0;
+    last_app = "";
+    last_flow_index = "";
+    last_flow_valid = false;
+    energy_bin_start = 0.0;
 
     bw_bin_ul_start_time = -1.0;
     bw_bin_ul_end_time = -1.0;
@@ -89,4 +94,12 @@ void User::resetSessionStat() {
     session_dl_tcp_payload = 0;
     session_dl_udp_all = 0;
     session_dl_udp_payload = 0;
+}
+
+void User::resetEnergyStat(double currTs) {
+    appEnergy.clear();
+    appUpBytes.clear();
+    appDownBytes.clear();
+    appLastTime.clear();
+    energy_bin_start = currTs;
 }

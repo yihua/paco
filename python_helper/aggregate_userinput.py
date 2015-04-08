@@ -1,0 +1,26 @@
+#!/usr/bin/python
+
+import glob
+
+# Generate a complete list of user study data and feed into the trace file
+
+root_dir = "/nfs/beirut1/userstudy/2nd_round/"
+file_limit = 200 # optional, set to -1 if not needed
+file_limit = -1
+
+# Note: if for some reason someone is using this in 2020 it will break :)
+candidate_dirs = glob.glob(root_dir + "userinput/userinput-*/")
+
+f = open("./pcaplistallsort", "w")
+
+all_items = []
+
+for item in candidate_dirs:
+    if file_limit != -1:
+        file_limit -= 1
+    all_items.append(item)
+    if file_limit == 0:
+            break
+all_items.sort()
+for item in all_items:
+    print >> f, item
