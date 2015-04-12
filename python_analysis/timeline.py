@@ -44,7 +44,7 @@ class TimeLine:
             self.column_names = column_names
         else:
             self.column_names = ["hour", "userid", "app", "location_rating", "network_type", \
-            "content_type", "bandwidth_up", "bandwidth_down", "bandwidth_up_encrypted", "bandwidth_down_encrypted"]
+                    "content_type", "bandwidth_up", "bandwidth_down", "bandwidth_up_encrypted", "bandwidth_down_encrypted", "energy_wifi", "energy_cellular", "energy_per_byte_wifi", "energy_per_byte_cellular"]
 
     def __del__(self):
         self.connection.close()
@@ -68,43 +68,98 @@ class TimeLine:
             v.save_to_database(t, cursor)
         self.connection.commit();
 
-    def add_flow_item(self, item, timestamp_adjustor):
-        userid = item["userID"]
-        is_encrypted =  (len(item["host"]) == 0)
-        app = item["app_name"]
+    def __add_flow_item_helper(self, start_time, userid, app, energy, \
+            content_type, size_up, size_down, is_encrypted, is_wifi, \
+            timestamp_adjustor):
 
-        size_up = item["total_dl_payload_h"]
-        size_down = item["total_ul_payload_h"]
-#        content_type = item["content_type"]
-        content_type = "none" 
-        time = item["start_time"]
-        energy_active = item["active_energy"]
-        energy_passive = item["passive_energy"]
-        
         size_up_encrypted = 0
         size_down_encrypted = 0
 
+        energy_wifi = 0
+        energy_cellular = 0
+
+        energy_per_byte_wifi = -1
+        energy_per_byte_cellular = -1
+
+        if is_wifi:
+            energy_wifi = energy 
+            if size_up + size_down > 0:
+                energy_per_byte_wifi = energy_wifi / (size_up + size_down) 
+        else:
+            energy_cellular = energy 
+            if size_up + size_down > 0:
+                energy_per_byte_cellular = energy_cellular / (size_up + size_down)
+
         if is_encrypted:
-            size_up_encrypted = size_up 
             size_down_encrypted = size_down
+            size_up_encrypted = size_up
             size_up = 0
             size_down = 0
 
-        self.add_data_point(time, userid, app, -1, -1, content_type, size_up, size_down, size_up_encrypted, size_down_encrypted, energy_active, energy_passive, timestamp_adjustor)
+        self.add_data_point(start_time, userid, app, -1, -1, content_type, \
+                size_up, size_down, size_up_encrypted, size_down_encrypted, \
+                energy_wifi, energy_cellular, energy_per_byte_wifi, \
+                energy_per_byte_cellular, timestamp_adjustor)
 
+    def add_flow_item(self, item, timestamp_adjustor):
+        userid = item["userID"]
+        is_encrypted =  (len(item["host"]) == 0)
+        app = item["app_name"].split(":")[0]
+
+        is_wifi = (item["network_type"] == 0)
+
+        content_types = item["content_type"]
+        sizes = item["content_length"]
+        energies = item["energy_log"]
+        timestamps = item["timestamp_log"]
+      
+        if len(sizes) == 0:
+            if item["first_ul_pl_time"] > 0 and item["first_dl_pl_time"] > 0:
+                start_time = min(item["first_ul_pl_time"], item["first_dl_pl_time"])
+            elif item["first_ul_pl_time"] > 0:
+                start_time = item["first_ul_pl_time"]
+            else:
+                start_time = item["first_dl_pl_time"]
+
+            energy = item["active_energy"] + item["passive_energy"]
+            content_type = "none"
+            size_up = item["ul_rate_payload_h"]
+            size_down = item["dl_rate_payload_h"] 
+
+            self.__add_flow_item_helper(start_time, userid, app, energy,\
+                    content_type, size_up, size_down, is_encrypted, \
+                    is_wifi, timestamp_adjustor)
+
+        for i in range(len(sizes)):
+            try:
+                energy_down, energy_up = energies[i].split(",")
+                energy = float(energy_down) + float(energy_up)
+                content_type = content_types[i]
+                size_up = int(sizes[i])
+                size_down = 0
+                timestamp = float(timestamps[i].split(",")[0])
+            except:
+                break
+
+            self.__add_flow_item_helper(timestamp, userid, app, energy, \
+                    content_type, size_up, size_down, is_encrypted, is_wifi,\
+                    timestamp_adjustor)  
 
     def add_data_point(self, timestamp, row1, row2, row3, \
             row4, row5, bandwidth_up, bandwidth_down, bandwidth_up_encrypted, \
-            bandwidth_down_encrypted, energy_active, energy_passive, timestamp_adjustor = 1):
+            bandwidth_down_encrypted, energy_wifi, energy_cellular, \
+            energy_per_byte_wifi, energy_per_byte_cellular, timestamp_adjustor = 1):
         """Figure out what timeline entry the data should be added to and add it there. """
 
+#        print bandwidth_up, bandwidth_down
         timestamp = timestamp / timestamp_adjustor 
         if timestamp not in self.timeline:
             self.timeline[timestamp] = HourSummary(timestamp, self.table_name, self.column_names)
-        self.timeline[timestamp].add_data_point(row1, row2, row3, \
+        self.timeline[timestamp].add_hour_point(row1, row2, row3, \
                 row4, row5, bandwidth_up, bandwidth_down, \
                 bandwidth_up_encrypted, bandwidth_down_encrypted, \
-                energy_active, energy_passive)
+                energy_wifi, energy_cellular, energy_per_byte_wifi, \
+                energy_per_byte_cellular)
 
     def fetch_all_hours(self):
         """Returns a list of all unique times in order """
@@ -119,31 +174,62 @@ class TimeLine:
     def fetch_match_column(self, filter_column, value, hour):
         """ Given an hour, a column and a value, sum up the bandwidths that match that."""
 
-        query = "SELECT sum(bandwidth_up), sum(bandwidth_down) , sum(bandwidth_up_encrypted), sum(bandwdith_down_encrypted) FROM " + self.table_name + " WHERE hour=" + str(hour) + " AND " + filter_column + " = \"" + str(value) + "\""
+        query = "SELECT sum(bandwidth_up), sum(bandwidth_down) , sum(bandwidth_up_encrypted), sum(bandwdith_down_encrypted), sum(energy_wifi), sum(energy_cellular), avg(nullif(energy_per_byte_cellular,-1)), avg(nullif(energy_per_byte_wifi, -1)) FROM " + self.table_name + " WHERE hour=" + str(hour) + " AND " + filter_column + " = \"" + str(value) + "\""
         cursor = self.connection.cursor()
         cursor.execute(query)
         bandwidth_up = 0
         bandwidth_down = 0
         bandwidth_up_encrypted = 0
         bandwidth_down_encrypted = 0
+        energy_wifi = 0
+        energy_cellular = 0
+        energy_per_byte_wifi = []
+        energy_per_byte_cellular = []
         for row in cursor.fetchall():
             try:
                 bandwidth_up += int(row[0])
                 bandwidth_down += int(row[1])
                 bandwidth_up_encrypted += int(row[2])
                 bandwidth_down_encrypted += int(row[3])
+                energy_wifi += float(row[4])
+                energy_cellular += float(row[5])
+
+                energy_per_byte_wifi.append(float(row[6]))
+                energy_per_byte_cellular.append(float(row[7]))
             except:
                 continue
-        return (bandwidth_up, bandwidth_down, bandwidth_up_encrypted, bandwidth_down_encrypted)
 
-        
+        if len(energy_per_byte_wifi) > 0:
+            energy_per_byte_wifi = sum(energy_per_byte_wifi)/len(energy_per_byte_wifi)
+        else:
+            energy_per_byte_wifi = -1
+
+        if len(energy_per_byte_cellular) > 0:
+            energy_per_byte_cellular = sum(energy_per_byte_cellular)/len(energy_per_byte_cellular)
+        else:
+            energy_per_byte_cellular = -1
+
+        return (bandwidth_up, bandwidth_down, bandwidth_up_encrypted, bandwidth_down_encrypted, energy_wifi, energy_cellular, energy_per_byte_wifi, energy_per_byte_cellular)
+
+    def fetch_data_averages(self, filter_columns, hour):
+        query = "SELECT avg(nullif(bandwidth_up, -1)), avg(nullif(bandwidth_down, -1)) , avg(nullif(bandwidth_up_encrypted, -1)), avg(nullif(bandwidth_down_encrypted, -1)), avg(nullif(energy_wifi, -1)), avg(nullif(energy_cellular, -1)), avg(nullif(energy_per_byte_wifi,-1)), avg(nullif(energy_per_byte_cellular, -1)) "
+
+        group_by = "hour"
+        if filter_columns:
+            query += "," + ", ".join(filter_columns)
+            group_by += "," + ", ".join(filter_columns)
+        query += (" FROM "+ self.table_name + " where hour = " + str(hour) + "  GROUP BY " + group_by)
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        for row in cursor.fetchall():
+            yield row
 
     def fetch_data(self, filter_columns, hour):
         """Return results of query with unique summed values based on the 
         filters (table headings) given.
         
         """
-        query = "SELECT sum(bandwidth_up), sum(bandwidth_down) , sum(bandwidth_up_encrypted), sum(bandwidth_down_encrypted) "
+        query = "SELECT sum(bandwidth_up), sum(bandwidth_down) , sum(bandwidth_up_encrypted), sum(bandwidth_down_encrypted), sum(energy_wifi), sum(energy_cellular), avg(nullif(energy_per_byte_wifi,-1)), avg(nullif(energy_per_byte_cellular, -1)) "
 
         group_by = "hour"
         if filter_columns:
@@ -162,7 +248,7 @@ class TimeLine:
         Must have already loaded all data into the database.
         """
 
-        query = "SELECT hour, sum(bandwidth_up), sum(bandwidth_down) , sum(bandwidth_up_encrypted), sum(bandwidth_down_encrypted)"
+        query = "SELECT hour, sum(bandwidth_up), sum(bandwidth_down) , sum(bandwidth_up_encrypted), sum(bandwidth_down_encrypted), sum(energy_wifi), sum(energy_cellular)"
 
         group_by = "hour"
         if filter_columns:
@@ -179,7 +265,9 @@ class TimeLine:
 class HourSummary:
     """ Breakdown of bandwidth in each time slot summarized by various data types.
     
-    Structure as a tree in rough order of how likely we are to query just that."""
+    Structure as a tree in rough order of how likely we are to query just that.
+    
+    TODO tree structure now completely useless, refactor"""
 
     def __init__(self, time, table_name, column_names):
         self.time = time
@@ -195,8 +283,24 @@ class HourSummary:
                 for row3, v3 in v2.iteritems():
                     for row4, v4 in v3.iteritems():
                         for row5, data in v4.iteritems():
+                            energy_per_byte_wifi = data[6]
+
+                            if len(energy_per_byte_wifi) > 0:
+                                energy_per_byte_wifi = sum(energy_per_byte_wifi)/\
+                                        len(energy_per_byte_wifi)
+                            else:
+                                energy_per_byte_wifi = 0
+                            
+                            energy_per_byte_cellular = data[7]
+
+                            if len(energy_per_byte_cellular) > 0:
+                                energy_per_byte_cellular = sum(energy_per_byte_cellular)/\
+                                        len(energy_per_byte_cellular)
+                            else:
+                                energy_per_byte_cellular = 0
+
                             values = [time, row1, row2, row3, row4, row5,\
-                                    data[0], data[1], data[2], data[3]]
+                                    data[0], data[1], data[2], data[3], data[4], data[5], energy_per_byte_wifi, energy_per_byte_cellular]
                             values = self.__clean_values(values)
                             query = "INSERT INTO "+ self.table_name + " (" + \
                                     ", ".join(self.column_names) + ") Values (" + \
@@ -226,20 +330,21 @@ class HourSummary:
         return ret_l
 
 
-    def add_data_point(self, row1, row2, row3, row4, row5,  
-            content_type, bandwidth_up, bandwidth_down,  bandwidth_up_encrypted, bandwidth_down_encrypted, data_active, data_tail):
+    def add_hour_point(self, row1, row2, row3, row4, row5, bandwidth_up, bandwidth_down,  bandwidth_up_encrypted, bandwidth_down_encrypted, energy_wifi, energy_cellular, energy_per_byte_wifi, energy_per_byte_cellular):
         """ Each parameter is another 'level' of the tree, bandwidth is additive."""
 
         # We need to convert the leaves to ints rather than dicts 
         if (row5) not in self.location_tree[row1][row2][row3][row4]:
-            self.location_tree[row1][row2][row3][row4][row5] = [0, 0, 0, 0, 0, 0]
+            self.location_tree[row1][row2][row3][row4][row5] = [0, 0, 0, 0, 0, 0, [], []]
 
         self.location_tree[row1][row2][row3][row4][row5][1] += bandwidth_down
         self.location_tree[row1][row2][row3][row4][row5][0] += bandwidth_up
         self.location_tree[row1][row2][row3][row4][row5][3] += bandwidth_down_encrypted
         self.location_tree[row1][row2][row3][row4][row5][2] += bandwidth_up_encrypted
-        self.location_tree[row1][row2][row3][row4][row5][4] += data_active 
-        self.location_tree[row1][row2][row3][row4][row5][5] += data_tail 
+        self.location_tree[row1][row2][row3][row4][row5][4] += energy_wifi 
+        self.location_tree[row1][row2][row3][row4][row5][5] += energy_cellular 
+        self.location_tree[row1][row2][row3][row4][row5][6].append(energy_per_byte_wifi)  
+        self.location_tree[row1][row2][row3][row4][row5][7].append(energy_per_byte_cellular)  
 
 if __name__ == "__main__":
     """ For testing only at this point"""

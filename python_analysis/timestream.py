@@ -200,7 +200,7 @@ def load_timeline(limit=-1):
         time = max(item["start_time"], item["tmp_start_time"])
         end_time = max(item["last_ul_pl_time"], item["last_dl_pl_time"])
         data_start_attributes = {}
-        data_start_attributes["flow_host"] = item["app_name"] 
+        data_start_attributes["flow_host"] = item["app_name"].split(":")[0]
         data_start_attributes["flow_dl_payload"] = item["total_dl_payload_h"] 
         data_start_attributes["flow_ul_payload"] = item["total_ul_payload_h"] 
         data_start_attributes["flow_content"] = item["content_type"] 
@@ -208,12 +208,14 @@ def load_timeline(limit=-1):
         data_start_attributes["is_wifi"] = (item["network_type"] == 0) 
         data_start_attributes["active_energy"] = item["active_energy"]
         data_start_attributes["passive_energy"] =  item["passive_energy"]
-        data_start_attributes["app_name"] =  item["app_name"]
+        data_start_attributes["app_name"] =  item["app_name"].split(":")[0]
         data_start_attributes["content_type"] = item["content_type"]
         data_start_attributes["request_url"] = item["request_url"]
+        data_start_attributes["timestamp_log"] = item["timestamp_log"]
+        data_start_attributes["energy_log"] = item["energy_log"]
 
-        if "facebook" in item["app_name"]:
-            print "energy:", time, item["active_energy"], item["passive_energy"], item["total_dl_payload_h"], item["total_ul_payload_h"]
+#        if "facebook" in item["app_name"]:
+#            print "energy:", time, item["active_energy"], item["passive_energy"], item["total_dl_payload_h"], item["total_ul_payload_h"]
 
         if user not in timeline:
             timeline[user] = []

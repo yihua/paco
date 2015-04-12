@@ -1,11 +1,13 @@
 #!/usr/bin/python
 
 import c_session
+import operator
+from collections import defaultdict
 
 # Organize by user, then by app
 
 CUTOFF = 0.6
-DATA_POINTS_NEEDED = 100 
+DATA_POINTS_NEEDED = 10 
 class PeriodicData:
     def __init__(self, item):
 
@@ -13,7 +15,7 @@ class PeriodicData:
         self.data = item["total_dl_payload_h"] + item["total_ul_payload_h"]
         self.active_energy = item["active_energy"] 
         self.passive_energy = item["passive_energy"] 
-        self.app_name = item["app_name"]
+        self.app_name = item["app_name"].split(":")[0]
         self.host_name = set(item["host"])
 
     def merge(self, data):
@@ -25,6 +27,10 @@ class PeriodicData:
         self.active_energy += data.active_energy
         self.passive_energy += data.passive_energy
         self.host_name.update(data.host_name)
+
+    def printme(self, f):
+        print >>f, "\t", self.host_name, self.data, self.active_energy, self.passive_energy
+
 
 def get_data_validate():
     #users = ["a", "b", "c"]
@@ -43,15 +49,18 @@ def get_data_validate():
 
     return timeline
 
-def get_data(limit=-1, appname_filter=[]):
+def get_data(appname_filter=[], limit=-1):
     flows = c_session.CFlow()
     flows.load_data(limit)
 
     timeline = {} 
     for item in flows.data:
 
-        user = item["userID"]
-        if appname_filter and  item["app_name"] not in appname_filter:
+        user = item["userID"] + item["clt_ip_tuple"][0] + \
+                item["clt_ip_tuple"][1] + item["server_ip_tuple"][0] + \
+                item["server_ip_tuple"][1]
+        flow_appname = item["app_name"].split(":")[0]
+        if appname_filter and  flow_appname not in appname_filter:
             continue
 
         data = PeriodicData(item)
@@ -60,7 +69,7 @@ def get_data(limit=-1, appname_filter=[]):
 
         if user not in timeline:
             timeline[user] = {}
-        if item["app_name"] not in timeline[user]:
+        if flow_appname not in timeline[user]:
             timeline[user][appname] = {}
 
         if time in timeline[user][appname]:
@@ -71,7 +80,7 @@ def get_data(limit=-1, appname_filter=[]):
 
     return timeline
 
-def detect_periodicity(timeline_user_app, user, appname, rounding=1, upper=60):
+def detect_periodicity(timeline_user_app, user, appname, candidate_periods, candidate_other_data, candidate_requests, rounding=1, upper=60):
     """
     Input of this function = output of get_data[user][appname]
     """
@@ -101,32 +110,37 @@ def detect_periodicity(timeline_user_app, user, appname, rounding=1, upper=60):
         for j in range(2,range_steps):
             time_offset = i % j
             period_index = j - 2
-#            print period_index, time_offset, len(total_counter), len(total_counter[period_index]), total_counter[period_index][time_offset]
             total_counter[period_index][time_offset] += 1
             if i in timeline:
-#                print i, period_index+2
                 range_counter[period_index][time_offset] += 1
                 items[period_index][time_offset].append(timeline[i])
 
-    # Evaluate periodic data
-    candidate_periods = set()
+
     for i in range(2,range_steps):
         for j in range(len(range_counter[i-2])):
-#            if "facebook" in appname:
-#                print i, j, total_counter[i-2][j], range_counter[i-2][j]
-            if total_counter[i-2][j] > DATA_POINTS_NEEDED and \
-                    range_counter[i-2][j]/float(total_counter[i-2][j]) > CUTOFF:
+            if range_counter[i-2][j] > DATA_POINTS_NEEDED:# and \
+                    candidate_periods[i] += range_counter[i-2][j]
+                    candidate_other_data[i] += total_counter[i-2][j]
+                    candidate_requests[i].append(items[i-2][j])
 
-                valid_period = True
-                for n in candidate_periods:
-                    if i % n == 0:
-                        valid_period = False
-                        continue
-                if valid_period:
-                    candidate_periods.add(i)
-                    print user, appname, "period of", i, "data points", total_counter[i-2][j], range_counter[i-2][j]
+
+def evaluate_periodicity(candidate_periods, candidate_other_data, candidates_request, appname, f):
+    candidates_to_sort = {}
+    for k, v in candidate_periods.iteritems():
+        if v > 100:
+            candidates_to_sort[k] = v/float(candidate_other_data[k])
+
+    candidates = sorted(candidates_to_sort.items(), key=operator.itemgetter(1), reverse=True)
+
+    for i in range(min(len(candidates),60)):
+        val = candidates[i][1]
+        key = candidates[i][0]
+        print >>f,  appname, "period of", key, "data points", val, candidate_periods[key], candidate_other_data[key]
+
+        if i == 0:
+            for item in candidates_reqest:
+                item.printme(f)
                 
-    return range_counter
 
 # Deprecated
 def format_data_fft(test_data):
@@ -145,13 +159,43 @@ def format_data_fft(test_data):
         print f / 5
 
 if __name__ == "__main__":
-#    timeline = get_data(100000)
-    timeline = get_data()
+
+    test_hosts = []
+    f = open("output_files/top_total_hosts.txt")
+    limit = 25 
+    for line in f:
+        line = line.split()[0]
+        test_hosts.append(line)
+        limit -= 1
+        if limit == 0:
+            break
+    f.close()
+
+#    timeline = get_data(test_hosts, 100000)
+    timeline = get_data(test_hosts)
     #timeline = get_data_validate()
+
+    # Evaluate periodic data
+    candidate_periods_min = defaultdict(lambda: defaultdict(int))
+    candidate_other_data_min = defaultdict(lambda:defaultdict(int))
+    candidate_requests_min = defaultdict(lambda:defaultdict(int))
+    candidate_periods_hour = defaultdict(lambda: defaultdict(int))
+    candidate_other_data_hour = defaultdict(lambda:defaultdict(int))
+    candidate_requests_hour= defaultdict(lambda:defaultdict(int))
+
     for user, applist in timeline.iteritems():
         for appname, flow in applist.iteritems():
-            print "by five minutes..."
-            detect_periodicity(flow, user, appname, 5, 60)
-            print "by hour..."
-            detect_periodicity(flow, user, appname, 60, 3600)
+            detect_periodicity(flow, user, appname, candidate_periods_min[appname], candidate_other_data_min[appname], candidate_requests_min[appname], 5, 120)
+            detect_periodicity(flow, user, appname, candidate_periods_hour[appname], candidate_other_data_hour[appname], candidate_requests_min[appname], 60, 4000)
+
+    f = open("output_files/find_periodic.txt", "w")
+
+    print >>f, "by five minutes..."
+    for appname, candidate_period in candidate_periods_min.iteritems():
+        print >>f
+        evaluate_periodicity(candidate_period, candidate_other_data_min[appname], candidate_requests_min[appname], appname, f)
+    print >>f, "by hour..."
+    for appname, candidate_period in candidate_periods_hour.iteritems():
+        print >>f
+        evaluate_periodicity(candidate_period, candidate_other_data_hour[appname], candidate_requests_hour[appname], appname, f)
 

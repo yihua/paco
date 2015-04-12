@@ -59,7 +59,7 @@ def generate_attributes(user_wifi, user_wifi_rating, user_top_wifi):
 
 def add_attribute(user, wifi_timestream, wifi, user_top_wifi):
     wifi_timestream[user].append(NetworkTypeAttribute(user, wifi[0], wifi[-1], wifi[1], wifi[2]))
-    print "Wifi attributes", user, wifi[0], wifi[-1], wifi[1], wifi[2]
+#    print "Wifi attributes", user, wifi[0], wifi[-1], wifi[1], wifi[2]
     return wifi_timestream
 
 

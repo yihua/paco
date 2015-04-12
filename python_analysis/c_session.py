@@ -1,7 +1,5 @@
 #!/usr/bin/python
 
-# NOT ACTUALLY TESTED YET!
-
 class CLogs:
     """Superclass for loading and parsing C logs """
     def __init__(self, filename, data_format_labels, data_format_types):
@@ -11,7 +9,6 @@ class CLogs:
         self.data_format_labels = data_format_labels
         self.data_format_types = data_format_types
 #        self.load_data()
-
 
     def load_data(self, limit=-1):
 
@@ -25,8 +22,8 @@ class CLogs:
             # Some lines are mangled...
             # This should happen rarely though
             if len(line) != len(self.data_format_labels) or len(line) != len(self.data_format_types):
-                print "Warning: line length wrong, expected", len(self.data_format_labels), len(self.data_format_types), len(line)
-                print "\t", line
+#                print "Warning: line length wrong, expected", len(self.data_format_labels), len(self.data_format_types), len(line)
+#                print "\t", line
                 continue
 
             # convert data to the appropriate type e.g. ["a", "1", "2"] + [str, int, int] 
@@ -83,7 +80,6 @@ class CSession(CLogs):
                 int, int, int, int, int,int]
         CLogs.__init__(self, "session_summary.txt", data_format_labels, data_format_types)
 
-
 class CRate(CLogs):
     """  One flow. """
     def __init__(self):
@@ -105,9 +101,6 @@ class CRate(CLogs):
             str, float, float, float, int, int, int, int, int]
  
         CLogs.__init__(self, "rate_summary.txt", data_format_labels, data_format_types)
-
-
-
 
 class CFlow(CLogs):
     """ TODO finish
