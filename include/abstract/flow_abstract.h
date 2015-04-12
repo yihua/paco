@@ -125,7 +125,7 @@ class FlowAbstract: public TrafficAbstract{
     // Summary of user session: write user struct to file
 	void writeSessionStat(Result* result, const User* user);
 	void writeRateStat(Result* result, const User* user, int dir);
-	double writePowerStat(Result* result, User* user, double currTs);
+	double writePowerStat(Result* result, User* user, double currTs, int networkType);
 	string traceType;
 
 	int ETHER_HDR_LEN;

@@ -88,7 +88,8 @@ TCPFlow::TCPFlow() {
     total_content_length = 0;
     energy_log = "";
     http_ts_log = "";
-    
+    fgLog = "";
+    lastFgTime = -1;
 
     full_url = "|";
 

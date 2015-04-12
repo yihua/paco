@@ -12,6 +12,8 @@
 #include "common/stl.h"
 #include "common/io.h"
 
+#define FG_PREFIX "/nfs/beirut1/userstudy/2nd_round/active_fg_sort_"
+
 class Context {
 private:
 	string currFolder, lastFolder;
@@ -27,6 +29,17 @@ private:
 	bool screenOn;
 	set<string> foregroundApp;
 
+    map<string, ifstream*> infile;
+
+    string tmpLine, tmpUID, tmpAppName;
+    int tmpT;
+    map<string, int> tmpTime;
+    //istringstream iss;
+    map<string, set<string> > fgApp;
+    map<string, int> fgTime;
+    map<string, string> fgAppLastLine;
+
+    void printFgApp(string uid);
 	double getTimestamp(string s);
 	string getAppName(string s);
 
@@ -41,6 +54,8 @@ public:
     const static int NETWORK_TYPE_CELLULAR = 1;
 
     Context();
+    void updateForegroundApp(string uid, double ts);
+    bool isForeground(string uid, string appName);
     void setEtherLen(int etherlen);
     int getNetworkType();
     void setNetworkType(int type);

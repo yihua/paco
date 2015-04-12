@@ -107,6 +107,8 @@ public:
     u_int total_content_length;
     string energy_log;
     string http_ts_log;
+    string fgLog;
+    double lastFgTime;
 
     string full_url;
     

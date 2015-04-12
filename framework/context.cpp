@@ -13,6 +13,105 @@ Context::Context() {
     networkType = -1;
     currFolder = "";
     lastFolder = "";
+    //fgAppLastLine = "";
+    //tmpTime = -1;
+}
+
+void Context::printFgApp(string uid) {
+    set<string>::iterator it;
+    for (it = fgApp[uid].begin(); it != fgApp[uid].end(); it++) {
+        cout << *it;
+    }
+    cout << endl;
+}
+
+
+void Context::updateForegroundApp(string uid, double ts) {
+    if (tmpTime.find(uid) != tmpTime.end() ) {
+        if (ts < double(tmpTime[uid])) {
+            //cout << ts << " " << tmpTime[uid] << endl;
+            return;
+        }
+    } else {
+        tmpTime[uid] = -1;
+        fgTime[uid] = -1;
+        string tmpFn(FG_PREFIX);
+        infile[uid] = new ifstream(tmpFn.append(uid).c_str());
+        fgAppLastLine[uid] = "";
+    }
+
+    if (fgAppLastLine[uid].length() > 0) {
+        //cout << uid << " " << fgTime[uid] <<": ";
+        //printFgApp(uid);
+
+        istringstream isst(fgAppLastLine[uid]);
+        isst >> tmpUID >> tmpT >> tmpAppName;
+        
+        if (double(tmpT) > ts) {
+            return;
+        }
+
+        cout << uid << " " << fgTime[uid] <<": ";
+        printFgApp(uid);
+
+        tmpTime[uid] = tmpT;
+        fgTime[tmpUID] = tmpTime[uid];
+
+        //if (fgApp.find[tmpUID] == fgApp.end()) {
+        //    fgApp[tmpUID] = new set<string>();
+        //}
+
+        fgApp[tmpUID].clear();
+        fgApp[tmpUID].insert(tmpAppName);
+    }
+
+    while (std::getline(*(infile[uid]), fgAppLastLine[uid])) {
+        cout << uid << " read lines .... " << ts << " | "<< fgAppLastLine[uid] << endl;
+        istringstream iss(fgAppLastLine[uid]);
+        iss >> tmpUID >> tmpT >> tmpAppName;
+        //cout << tmpUID << " " <<  tmpT << " " << tmpAppName;
+        
+        if (double(tmpT) > ts) {
+            return;
+        }        
+
+        tmpTime[uid] = tmpT;
+
+        //cout << tmpTime[uid] << endl;
+
+        if (fgTime.find(tmpUID) == fgTime.end()) {
+            fgTime[tmpUID] = tmpTime[uid];
+            //fgApp[tmpUID] = new set<string>();
+            fgApp[tmpUID].clear();
+            fgApp[tmpUID].insert(tmpAppName);
+        } else {
+            if (fgTime[tmpUID] == tmpTime[uid]) {
+                fgApp[tmpUID].insert(tmpAppName);
+                //cout << "add record" << endl;
+            } else {
+                if (ts >= tmpTime[uid]) {
+                    fgTime[tmpUID] = tmpTime[uid];
+                    fgApp[tmpUID].clear();
+                    fgApp[tmpUID].insert(tmpAppName);
+                    cout << "continue --------------->" << endl;
+                } else {
+                    cout << "return************************" << endl;
+                    return;
+                }
+            }
+        }
+    }
+}
+
+bool Context::isForeground(string uid, string appName) {
+    if (fgApp.find(uid) == fgApp.end()) {
+        return false;
+    }
+
+    if (fgApp[uid].find(appName) == fgApp[uid].end()) {
+        return false;
+    }
+    return true;
 }
 
 void Context::setEtherLen(int etherlen){

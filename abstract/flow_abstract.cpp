@@ -6,7 +6,8 @@
  */
 
 #include "abstract/flow_abstract.h"
-#include "proto/rrc.h"
+//#include "proto/rrc.h"
+#include "model/energy.h"
 #include <limits>
 FlowAbstract::FlowAbstract() {
 	is_first = true;
@@ -186,7 +187,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, TCPFlow* tcpflow) {
 	//cout << "write to string buf end" << endl;
 }
 
-double FlowAbstract::writePowerStat(Result* result, User* user, double currTs) {
+double FlowAbstract::writePowerStat(Result* result, User* user, double currTs, int networkType) {
 	stringstream s("");
 	map<string, double>::iterator it = user->appEnergy.begin();
 	int prec = numeric_limits<long double>::digits10;
@@ -200,16 +201,27 @@ double FlowAbstract::writePowerStat(Result* result, User* user, double currTs) {
 		s << user->appUpBytes[it->first];
 		s <<"\t";	
 		s << user->appDownBytes[it->first];
+        s << "\t";
+        s << networkType;
 		s << "\n";
 	}
-        double tmp_energy = 0.0;
+    double tmp_energy = 0.0;
+
+    double demoteTimer = 0.0, passiveCost = 0.0;
+    if (networkType == Context::NETWORK_TYPE_WIFI) {
+        demoteTimer = TAIL_TIME_WIFI;
+        passiveCost = TAIL_POWER_WIFI;
+    } else if (networkType == Context::NETWORK_TYPE_CELLULAR) {
+        demoteTimer = TAIL_TIME_LTE;
+        passiveCost = TAIL_POWER_LTE;
+    }
 	if (currTs - user->energy_bin_start > ENERGY_BIN + 0.1) {
 		user->energy_bin_start += ENERGY_BIN;
 		while (user->energy_bin_start < currTs &&
-			user->energy_bin_start < user->appLastTime[user->last_app] + DEMOTE_TIMER) {
+			user->energy_bin_start < user->appLastTime[user->last_app] + demoteTimer) {
 			double bin_dur = 1.0;
 			bin_dur = (currTs - user->energy_bin_start < bin_dur) ? currTs - user->energy_bin_start : bin_dur;
-			bin_dur = (user->appLastTime[user->last_app] + DEMOTE_TIMER - user->energy_bin_start < bin_dur) ? user->appLastTime[user->last_app] + DEMOTE_TIMER - user->energy_bin_start : bin_dur; 
+			bin_dur = (user->appLastTime[user->last_app] + demoteTimer - user->energy_bin_start < bin_dur) ? user->appLastTime[user->last_app] + demoteTimer - user->energy_bin_start : bin_dur; 
 			if (bin_dur < 0) {
 				cout << "estimate passive wrong!" <<endl;
 			}
@@ -217,11 +229,13 @@ double FlowAbstract::writePowerStat(Result* result, User* user, double currTs) {
 			s.precision(prec);
 			s << user->energy_bin_start;
 			s << "\t";
-			s << bin_dur * PASSIVE_COST;
-			s << "\t0\t0\n";
+			s << bin_dur * passiveCost;
+			s << "\t0\t0\t";
+            s << networkType;
+            s < "\n";
 			user->energy_bin_start += ENERGY_BIN;
-                        if (bin_dur > 0) {
-				tmp_energy += bin_dur * PASSIVE_COST;
+            if (bin_dur > 0) {
+				tmp_energy += bin_dur * passiveCost;
 			}
 		}
 	}
@@ -291,6 +305,9 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 	/* timestamp of the packet (unit: second, accuracy: microsecond)
 	*/
 	ts = ((double)(header->ts.tv_sec) + (double)header->ts.tv_usec / (double)USEC_PER_SEC);// - TIME_BASE;
+
+    traceCtx.updateForegroundApp(traceCtx.getUserID(), ts);
+
 	if (ts - last_ts < 0) {
 		cout << "------------- Packets orders not correct!!! -----------" << endl;
 		cout << traceCtx.getFolder() << endl 
@@ -395,7 +412,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			}
 		}
 		
-		int tmpDirection = -1; // 0:up 1:down
+		int tmpDirection = -2; // 0:up 1:down
 		// cout << appIndex << endl;
 		if ((b1 && !b2) || (!b1 && b2)) { //uplink or downlink
 			if (b1 && !b2) { // uplink
@@ -472,39 +489,48 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			userp->appEnergy[appName] = 0;
 		}
 		double pktEnergy = 0.0, passiveEnergy = 0.0;
-        if (traceCtx.getNetworkType() == Context::NETWORK_TYPE_CELLULAR) {
+        if (traceCtx.getNetworkType() == Context::NETWORK_TYPE_CELLULAR
+            && tmpDirection >= 0) {
             // cellular power
-    		if (userp->last_packet_dir < 0) {
+    		if (userp->last_packet_dir == -1) {
 	    		userp->last_packet_dir = tmpDirection;
+                userp->last_epkt_time = ts;
 		    	userp->last_app = appName;
 			    userp->energy_bin_start = ts;
     			userp->appLastTime[appName] = ts;
+                userp->last_bin_network = Context::NETWORK_TYPE_CELLULAR;
     			if (tmpDirection == 0)
     				userp->appUpBytes[appName] = ip_payload_len;
     			else if (tmpDirection == 1)
     				userp->appDownBytes[appName] = ip_payload_len;
-    			cout << "*********** Initialized: user " << userp->userID << "**************" << endl;
-    		} else {
+    			cout << "*********** Initialized Cellular: user " << userp->userID << "**************" << endl;
+    		} else if (userp->last_packet_dir >= 0) {
     			if (ts - userp->energy_bin_start > ENERGY_BIN) {
-    				pktEnergy = (userp->energy_bin_start + ENERGY_BIN - userp->last_packet_time) * ((1-userp->last_packet_dir)*ACTIVE_COST_UP + userp->last_packet_dir*ACTIVE_COST_DOWN);
+    				pktEnergy = (userp->energy_bin_start + ENERGY_BIN - userp->last_epkt_time) * ((1-userp->last_packet_dir)*DATA_TRANSFER_UP_LTE_TMP + userp->last_packet_dir*DATA_TRANSFER_DOWN_LTE_TMP);
+                    if (userp->energy_bin_start + ENERGY_BIN - userp->last_epkt_time > 0.1) {
+                        passiveEnergy = (userp->energy_bin_start + ENERGY_BIN - userp->last_epkt_time)*TAIL_POWER_LTE;
+                        pktEnergy = 0.0;
+                    }
     				if (pktEnergy < 0) {
-    					cout << "last energy estimate wrong!" << endl;
+    			        cout << "cellular last energy estimate wrong!" << endl;
     					pktEnergy = 0.0;
     				}
-    				userp->appEnergy[userp->last_app] += pktEnergy;
-    				passiveEnergy = writePowerStat(result, userp, ts);
-		} else {
-    				pktEnergy = (ts - userp->last_packet_time) *
-    						((1-userp->last_packet_dir)*ACTIVE_COST_UP + userp->last_packet_dir*ACTIVE_COST_DOWN);
-    				if (pktEnergy < 0) {
+    				userp->appEnergy[userp->last_app] += (pktEnergy+passiveEnergy);
+    				passiveEnergy += writePowerStat(result, userp, ts, userp->last_bin_network);
+                    userp->last_bin_network = Context::NETWORK_TYPE_CELLULAR;
+		        } else {
+    				pktEnergy = (ts - userp->last_epkt_time) *
+    						((1-userp->last_packet_dir)*DATA_TRANSFER_UP_LTE_TMP + userp->last_packet_dir*DATA_TRANSFER_DOWN_LTE_TMP);
+    				if (pktEnergy < 0 || passiveEnergy < 0) {
     					cout.precision(13);
-    					cout << "middle energy estimate wrong!"
+    					cout << "cellular energy estimate wrong!"
     						<< userp->energy_bin_start << "\t"
-    						<< userp->last_packet_time << "\t"
+    						<< userp->last_epkt_time << "\t"
     						<< ts << "\t"
-    						<< ts - userp->last_packet_time << "\t"
-    						 <<   (1-userp->last_packet_dir)*ACTIVE_COST_UP + userp->last_packet_dir*ACTIVE_COST_DOWN << endl;
+    						<< ts - userp->last_epkt_time << "\t"
+    						 <<   (1-userp->last_packet_dir)*DATA_TRANSFER_UP_LTE_TMP + userp->last_packet_dir*DATA_TRANSFER_DOWN_LTE_TMP << endl;
     					pktEnergy = 0.0;
+                        passiveEnergy = 0.0;
                     }
 				    userp->appEnergy[userp->last_app] += pktEnergy;
 			    }
@@ -516,8 +542,63 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                 else if (tmpDirection == 1)
                     userp->appDownBytes[appName] += ip_payload_len;
 		    }
-        } else {
+            userp->last_epkt_time = ts;
+        } else if (traceCtx.getNetworkType() == Context::NETWORK_TYPE_WIFI
+                && tmpDirection >= 0) {
             // Wifi power
+            if (userp->last_packet_dir == -1) {
+                userp->last_packet_dir = tmpDirection;
+                userp->last_app = appName;
+                userp->energy_bin_start = ts;
+                userp->appLastTime[appName] = ts;
+                userp->last_bin_network = Context::NETWORK_TYPE_WIFI;
+                if (tmpDirection == 0)
+                    userp->appUpBytes[appName] = ip_payload_len;
+                else if (tmpDirection == 1)
+                    userp->appDownBytes[appName] = ip_payload_len;
+                cout << "*********** Initialized WiFi: user " << userp->userID << "**************" << endl;
+            } else if (userp->last_packet_dir >= 0) {
+                if (ts - userp->energy_bin_start > ENERGY_BIN) {
+                    if (userp->energy_bin_start + ENERGY_BIN - userp->last_epkt_time > TAIL_TIME_WIFI) {
+                        passiveEnergy += TAIL_TIME_WIFI * TAIL_POWER_WIFI;
+                    } else if (userp->energy_bin_start + ENERGY_BIN - userp->last_epkt_time > 0.1) {
+                        passiveEnergy += (userp->energy_bin_start + ENERGY_BIN - userp->last_epkt_time) * TAIL_POWER_WIFI;
+                    } else {
+                        pktEnergy = (userp->energy_bin_start + ENERGY_BIN - userp->last_epkt_time) * ((1-userp->last_packet_dir)*DATA_TRANSFER_UP_WIFI_TMP + userp->last_packet_dir*DATA_TRANSFER_DOWN_WIFI_TMP);
+
+                    }
+                    if (pktEnergy < 0 || passiveEnergy < 0) {
+                        cout << "wifi last energy estimate wrong!" << endl;
+                        pktEnergy = 0.0;
+                        passiveEnergy = 0.0;
+                    }
+                    userp->appEnergy[userp->last_app] += (pktEnergy+passiveEnergy);
+                    passiveEnergy += writePowerStat(result, userp, ts, userp->last_bin_network);
+                    userp->last_bin_network = Context::NETWORK_TYPE_WIFI;
+                } else {
+                    pktEnergy = (ts - userp->last_epkt_time) *
+                        ((1-userp->last_packet_dir)*DATA_TRANSFER_UP_WIFI_TMP + userp->last_packet_dir*DATA_TRANSFER_DOWN_WIFI_TMP);
+                    if (pktEnergy < 0) {
+                        cout.precision(13);
+                        cout << "wifi middle energy estimate wrong!"
+                            << userp->energy_bin_start << "\t"
+                            << userp->last_epkt_time << "\t"
+                            << ts << "\t"
+                            << ts - userp->last_epkt_time << "\t"
+                            <<   (1-userp->last_packet_dir)*DATA_TRANSFER_UP_WIFI_TMP + userp->last_packet_dir*DATA_TRANSFER_DOWN_WIFI_TMP << endl;
+                        pktEnergy = 0.0;
+                    }
+                    userp->appEnergy[userp->last_app] += pktEnergy;
+                }
+                userp->last_packet_dir = tmpDirection;
+                userp->last_app = appName;
+                userp->appLastTime[appName] = ts;
+                if (tmpDirection == 0)
+                    userp->appUpBytes[appName] += ip_payload_len;
+                else if (tmpDirection == 1)
+                    userp->appDownBytes[appName] += ip_payload_len;
+            }
+            userp->last_epkt_time = ts;
         }
 		
 		/* TCP Concurrency statistics*/
@@ -843,10 +924,16 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					}
                     
                     // flow level power analysis, note that the pktEnergy and passiveEnergy are for the last packet for the same user
+                    
+                    // attach foreground information
+                    //if (traceCtx.)
+
                     flow_it_last = userp->tcp_flows.find(userp->last_flow_index);
                     if (userp->last_flow_valid) {
                         if (flow_it_last != userp->tcp_flows.end()) {
-                            userp->tcp_flows[userp->last_flow_index]->active_energy += pktEnergy;
+                            if (userp->last_payload > 0) {
+                                userp->tcp_flows[userp->last_flow_index]->active_energy += pktEnergy;
+                            }
                             userp->tcp_flows[userp->last_flow_index]->passive_energy += passiveEnergy;
                         } else {
                             cout << "Flow not found, cannot add energy!!!!" << endl;
@@ -854,7 +941,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                     }
                     userp->last_flow_index = flow_index;
                     userp->last_flow_valid = flow_valid;
-                    
+                    userp->last_payload = payload_len;
                     
 					//flow = &client_flows[flow_index];
 					flow->end_time = ts;

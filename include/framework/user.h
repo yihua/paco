@@ -28,13 +28,16 @@ public:
 	string userID;
     double start_time;
     double last_packet_time;
+    int last_epkt_time;
     int last_packet_dir;
     double energy_bin_start;
+    int last_bin_network;
     string last_app;
     string last_flow_index;
     bool last_flow_valid;
     double cc_start;
     double last_cc_sample_time;
+    int last_payload;
 
     double bw_bin_ul_start_time, bw_bin_ul_end_time;
     uint64 bw_bin_ul_ip_all, bw_bin_ul_ip_payload; 

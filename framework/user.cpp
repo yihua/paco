@@ -12,6 +12,7 @@ User::User() {
 	//cout << "user init" << endl;
     start_time = -1.0;
     last_packet_time = 0;
+    last_epkt_time = 0;
     last_packet_dir = -1;
     tcp_flows.clear();
     last_http_time = 0;
@@ -21,6 +22,7 @@ User::User() {
     last_app = "";
     last_flow_index = "";
     last_flow_valid = false;
+    last_payload = -1;
     energy_bin_start = 0.0;
 
     bw_bin_ul_start_time = -1.0;
