@@ -109,6 +109,7 @@ public:
     string http_ts_log;
     string fgLog;
     double lastFgTime;
+    bool lastFgStatus;
 
     string full_url;
     

@@ -90,6 +90,7 @@ TCPFlow::TCPFlow() {
     http_ts_log = "";
     fgLog = "";
     lastFgTime = -1;
+    lastFgStatus = false;
 
     full_url = "|";
 

@@ -20,7 +20,7 @@ Context::Context() {
 void Context::printFgApp(string uid) {
     set<string>::iterator it;
     for (it = fgApp[uid].begin(); it != fgApp[uid].end(); it++) {
-        cout << *it;
+        cout << *it << " | ";
     }
     cout << endl;
 }
@@ -51,8 +51,8 @@ void Context::updateForegroundApp(string uid, double ts) {
             return;
         }
 
-        cout << uid << " " << fgTime[uid] <<": ";
-        printFgApp(uid);
+        //cout << uid << " " << fgTime[uid] <<": ";
+        //printFgApp(uid);
 
         tmpTime[uid] = tmpT;
         fgTime[tmpUID] = tmpTime[uid];
@@ -66,7 +66,7 @@ void Context::updateForegroundApp(string uid, double ts) {
     }
 
     while (std::getline(*(infile[uid]), fgAppLastLine[uid])) {
-        cout << uid << " read lines .... " << ts << " | "<< fgAppLastLine[uid] << endl;
+        //cout << uid << " read lines .... " << ts << " | "<< fgAppLastLine[uid] << endl;
         istringstream iss(fgAppLastLine[uid]);
         iss >> tmpUID >> tmpT >> tmpAppName;
         //cout << tmpUID << " " <<  tmpT << " " << tmpAppName;
@@ -90,12 +90,15 @@ void Context::updateForegroundApp(string uid, double ts) {
                 //cout << "add record" << endl;
             } else {
                 if (ts >= tmpTime[uid]) {
+                    //cout << uid << " " << fgTime[uid] <<": ";
+                    //printFgApp(uid);
+
                     fgTime[tmpUID] = tmpTime[uid];
                     fgApp[tmpUID].clear();
                     fgApp[tmpUID].insert(tmpAppName);
-                    cout << "continue --------------->" << endl;
+                    //cout << "continue --------------->" << endl;
                 } else {
-                    cout << "return************************" << endl;
+                    //cout << "return************************" << endl;
                     return;
                 }
             }

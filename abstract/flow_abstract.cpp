@@ -122,13 +122,20 @@ void FlowAbstract::writeTCPFlowStat(Result* result, TCPFlow* tcpflow) {
         tcpflow->energy_log += "|";
     }
 
+    if (tcpflow->fgLog.length() > 0 && tcpflow->lastFgStatus) {
+        tcpflow->fgLog.append(doubleToString(tcpflow->lastFgTime));
+    }
+    if (tcpflow->fgLog.length() == 0) {
+        tcpflow->fgLog.append("|");
+    }
+
 	int size = tcpflow->http_ts_log.length() + tcpflow->energy_log.size() +
                 tcpflow->content_type.size() + tcpflow->user_agent.size() +
 				tcpflow->host.size() + tcpflow->content_length.size() + 
                 tcpflow->full_url.size() + 1000;
 	char buf[size];
 	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d %d %lld %lld %s %.6lf %.6lf \
-%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf \
+%.6lf %.6lf %s %.6lf %.6lf %.6lf %.6lf \
 %lld %lld %lld %lld %.6lf %.6lf %.6lf %lld %lld \
 %lld %lld %lld %lld \
 %d %s %s %s %s %s %s %d %s\n",
@@ -141,6 +148,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, TCPFlow* tcpflow) {
 		tcpflow->networkType, tcpflow->packet_count, tcpflow->app_packet_count, tcpflow->appName.c_str(), 
         tcpflow->active_energy, tcpflow->passive_energy,
 		tcpflow->start_time, tcpflow->tmp_start_time,
+        tcpflow->fgLog.c_str(),
 		tcpflow->first_ul_pl_time, tcpflow->first_dl_pl_time,
 		tcpflow->last_ul_pl_time, tcpflow->last_dl_pl_time,
 		tcpflow->total_ul_payload, tcpflow->total_dl_payload,
@@ -926,7 +934,31 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                     // flow level power analysis, note that the pktEnergy and passiveEnergy are for the last packet for the same user
                     
                     // attach foreground information
-                    //if (traceCtx.)
+                    if (traceCtx.isForeground(userp->userID, flow->appName)) {
+                        // now foreground
+                        if (flow->lastFgStatus) {
+                            // continue foreground
+                            flow->lastFgTime = ts;
+                        } else {
+                            // start foreground
+                            flow->lastFgStatus = true;
+                            flow->lastFgTime = ts;
+                            if (flow->fgLog.length() > 0) {
+                                flow->fgLog.append("|");
+                            }
+                            flow->fgLog.append(doubleToString(ts).append(","));
+                        } 
+                    } else {
+                        // now background
+                        if (flow->lastFgStatus) {
+                            // turn to background
+                            flow->lastFgStatus = false;
+                            flow->fgLog.append(doubleToString(flow->lastFgTime));
+                            flow->lastFgTime = -1;
+                        } else {
+                            //continue background
+                        }
+                    }
 
                     flow_it_last = userp->tcp_flows.find(userp->last_flow_index);
                     if (userp->last_flow_valid) {
