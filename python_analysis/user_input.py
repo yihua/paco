@@ -62,76 +62,72 @@ class Sessions():
                 return
             if (line[2] == RELEASE and len(line) != 3):
                 return
-        
+        if (line[1] == 'Volume' and line[2] == 'Up'):
+            line[1] = 'Volume_Up'
+            line.pop(2)
         if username not in self.touch_status:
-            self.touch_status[username] = ['', False]
-            self.tmp_status[username] = [0, 0, -1, -1, -1, -1] # start, end, hori, verti, hori, verti
+            self.touch_status[username] = {}
+            self.tmp_status[username] = {} # starti:0, end:1, hori:2, verti:3, hori:4, verti:5
             self.last_line[username] = ''
         
-        if self.touch_status[username][1]:
+        # key name
+        keyname = line[1]
+
+        if keyname not in self.touch_status[username]:
+            self.touch_status[username][keyname] = False
+            self.tmp_status[username][keyname] = [0, 0, -1, -1, -1, -1]
+
+        if self.touch_status[username][keyname]:
             # already touch
-            if line[1] != self.touch_status[username][0]:
-                # key doesn't match
-                #print "Touch event log error:", self.touch_status[username][0], line[1], self.last_line[username], line
+            tmp_flag = True
+            if (float(line[0]) - self.tmp_status[username][keyname][1] > 10):
+                #print "Possible Log error!! ******************", username, keyname, self.tmp_status[username][keyname], line
+
+                self.tmp_status[username][keyname] = [0, 0, -1, -1, -1, -1]
+                if (line[2] == RELEASE):
+                    tmp_flag = False
+                    self.touch_status[username][keyname] = False
                 if (line[2] == PRESS):
-                    self.tmp_status[username][0] = float(line[0])
-                    self.tmp_status[username][1] = float(line[0])
-                    self.touch_status[username][0] = line[1]
-                    self.touch_status[username][1] = True
-                    self.tmp_status[username][2] = -1
-                    self.tmp_status[username][3] = -1
-                    if (line[1] == TOUCH_SCREEN):
-                        if (line[3] == VERT):
-                            self.tmp_status[username][3] = int(line[4])
-                            self.tmp_status[username][5] = int(line[4])
-                        if (line[3] == HORIZ):
-                            self.tmp_status[username][2] = int(line[4])
-                            self.tmp_status[username][4] = int(line[4])
-                else:
-                    self.touch_status[username][1] = False
-            else:
-                # key match
-                if (line[2] == PRESS):
-                    self.tmp_status[username][1] = float(line[0])
-                    if (line[1] == TOUCH_SCREEN):
-                        if (line[3] == VERT):
-                            if (self.tmp_status[username][3] < 0):
-                                self.tmp_status[username][3] = int(line[4])
-                            self.tmp_status[username][5] = int(line[4])
-                        if (line[3] == HORIZ):
-                            if (self.tmp_status[username][2] < 0):
-                                self.tmp_status[username][2] = int(line[4])
-                            self.tmp_status[username][4] = int(line[4])
-                elif (line[2] == RELEASE):
-                    self.tmp_status[username][1] = float(line[0])
-                    self.touch_status[username][1] = False
+                    self.tmp_status[username][keyname][0] = float(line[0])
 
-                    self.user_gestures[username].append([self.touch_status[username][0],
-                        self.tmp_status[username][0], self.tmp_status[username][1],
-                        self.tmp_status[username][2], self.tmp_status[username][3],
-                        self.tmp_status[username][4], self.tmp_status[username][5]])
-
-        elif (line[2] == PRESS):
-            # touch not start
-            self.touch_status[username][0] = line[1]
-            self.touch_status[username][1] = True
-
-            self.tmp_status[username][0] = float(line[0])
-            self.tmp_status[username][1] = float(line[0])
-            
-            self.tmp_status[username][2] = -1
-            self.tmp_status[username][3] = -1
-
-            if (line[1] == TOUCH_SCREEN):
-                if (len(line) != 5):
-                    self.touch_status[username][1] = False
-                else:
+            if (line[2] == PRESS):
+                self.tmp_status[username][keyname][1] = float(line[0])
+                if (line[1] == TOUCH_SCREEN):
                     if (line[3] == VERT):
-                        self.tmp_status[username][3] = int(line[4])
-                        self.tmp_status[username][5] = int(line[4])
+                        if (self.tmp_status[username][keyname][3] < 0):
+                            self.tmp_status[username][keyname][3] = int(line[4])
+                        self.tmp_status[username][keyname][5] = int(line[4])
                     if (line[3] == HORIZ):
-                        self.tmp_status[username][2] = int(line[4])
-                        self.tmp_status[username][4] = int(line[4])
+                        if (self.tmp_status[username][keyname][2] < 0):
+                            self.tmp_status[username][keyname][2] = int(line[4])
+                        self.tmp_status[username][keyname][4] = int(line[4])
+            if (tmp_flag and line[2] == RELEASE):
+                self.tmp_status[username][keyname][1] = float(line[0])
+                self.touch_status[username][keyname] = False
+
+                self.user_gestures[username].append([keyname,
+                        self.tmp_status[username][keyname][0], self.tmp_status[username][keyname][1],
+                        self.tmp_status[username][keyname][2], self.tmp_status[username][keyname][3],
+                        self.tmp_status[username][keyname][4], self.tmp_status[username][keyname][5]])
+                self.tmp_status[username][keyname] = [0, 0, -1, -1, -1, -1]
+        else:
+            # not touch
+            if (line[2] == PRESS):
+                self.touch_status[username][keyname] = True
+                self.tmp_status[username][keyname][0] = float(line[0])
+                self.tmp_status[username][keyname][1] = float(line[0])
+                if (line[1] == TOUCH_SCREEN):
+                    if (line[3] == VERT):
+                        if (self.tmp_status[username][keyname][3] < 0):
+                            self.tmp_status[username][keyname][3] = int(line[4])
+                        self.tmp_status[username][keyname][5] = int(line[4])
+                    if (line[3] == HORIZ):
+                        if (self.tmp_status[username][keyname][2] < 0):
+                            self.tmp_status[username][keyname][2] = int(line[4])
+                        self.tmp_status[username][keyname][4] = int(line[4])
+            #else:
+                #print "Possible Log error!! >>>>>>>>>>>>>>>>>>>>", username, keyname, self.tmp_status[username][keyname], line
+
 
         self.last_line[username] = line
 
@@ -216,7 +212,6 @@ class Validation():
                 if line[i] not in self.entry_types[log_type]:
                     print line
                 self.entry_types[log_type].add(line[i])
-
     def validate(self):
 
         load_data(self.validation_function, 1000)

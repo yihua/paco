@@ -7,7 +7,7 @@ from collections import defaultdict
 # Organize by user, then by app
 
 CUTOFF = 0.6
-DATA_POINTS_NEEDED = 10 
+DATA_POINTS_NEEDED = 5 
 class PeriodicData:
     def __init__(self, item):
 
@@ -127,7 +127,7 @@ def detect_periodicity(timeline_user_app, user, appname, candidate_periods, cand
 def evaluate_periodicity(candidate_periods, candidate_other_data, candidates_request, appname, f):
     candidates_to_sort = {}
     for k, v in candidate_periods.iteritems():
-        if v > 100:
+        if v > 2:
             candidates_to_sort[k] = v/float(candidate_other_data[k])
 
     candidates = sorted(candidates_to_sort.items(), key=operator.itemgetter(1), reverse=True)

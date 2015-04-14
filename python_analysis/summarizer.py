@@ -10,10 +10,12 @@ import numpy
 import parse_wifi
 # High-level analysis of top apps
 
-host_rank_file = "output_files/top_total_hosts.txt"
+host_rank_file = "output_files/top_energy_ratio_hosts_overall.txt"
+#host_rank_file = "output_files/top_total_hosts.txt"
 #host_rank_file = "output_files/top_energy_hosts.txt"
+suffix = "_by_energy_ratio"
 #suffix = "_by_energy"
-suffix = ""
+#suffix = ""
 
 appname_mapping = {"/system/bin/mediaserver":"mediaserver",\
         "com.instagram.android":"instagram",\
@@ -67,6 +69,9 @@ class AppStatistics:
         self.byte_cellular = 0
         self.energy_wifi = 0
         self.energy_cellular = 0
+        
+        self.avg_energy_ratio_cellular = []
+        self.avg_energy_ratio_wifi = []
 
         self.avg_length_session = []
         self.avg_active_length_session = []
@@ -87,9 +92,15 @@ class AppStatistics:
         if is_wifi:
             self.byte_wifi += (size_up + size_down)
             self.energy_wifi += (active_energy + tail_energy)
+
+            if size_up + size_down > 0:
+                self.avg_energy_ratio_wifi.append((active_energy + tail_energy)/ (size_up + size_down))
+
         else:
             self.byte_cellular += (size_up + size_down)
             self.energy_cellular += (active_energy + tail_energy)
+            if size_up + size_down > 0:
+                self.avg_energy_ratio_cellular.append((active_energy + tail_energy)/ (size_up + size_down))
 
         self.upload += size_up
         self.download += size_down
@@ -148,7 +159,15 @@ class AppStatistics:
         if len(self.avg_data_session) > 0:
             avg_data_session = numpy.mean(self.avg_data_session)
 
-        print >>f, name, self.encrypted, self.cleartext, self.upload, self.download, self.energy_active, self.energy_tail, self.byte_wifi, self.byte_cellular, self.energy_wifi, self.energy_cellular, avg_length_session, avg_active_length_session, avg_energy_tail_session, avg_energy_active_session, avg_data_session 
+        avg_ratio_wifi = 0
+        if len(self.avg_energy_ratio_wifi) > 0:
+            avg_ratio_wifi = numpy.mean(self.avg_energy_ratio_wifi) 
+
+        avg_ratio_cellular = 0
+        if len(self.avg_energy_ratio_cellular) > 0:
+            avg_ratio_cellular = numpy.mean(self.avg_energy_ratio_cellular) 
+
+        print >>f, name, self.encrypted, self.cleartext, self.upload, self.download, self.energy_active, self.energy_tail, self.byte_wifi, self.byte_cellular, self.energy_wifi, self.energy_cellular, avg_length_session, avg_active_length_session, avg_energy_tail_session, avg_energy_active_session, avg_data_session, avg_ratio_wifi, avg_ratio_cellular 
 
 class UserStatistics:
     def __init__(self):
@@ -264,8 +283,8 @@ for item in flows.data:
     if app in blacklist:
         continue
 
-    size_up = item["total_dl_payload_h"]
-    size_down = item["total_ul_payload_h"]
+    size_up = item["total_dl_whole"]
+    size_down = item["total_ul_whole"]
     time = item["start_time"]
 #    print item["network_type"]
     is_wifi = (item["network_type"] == 0)

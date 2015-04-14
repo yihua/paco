@@ -474,8 +474,8 @@ for item in flows.data:
         continue
     lines_processed += 1
     app = item["app_name"]
-    size_up = item["total_dl_payload_h"]
-    size_down = item["total_ul_payload_h"]
+    size_up = item["total_dl_whole"]
+    size_down = item["total_ul_whole"]
     content_type = item["content_type"]
     time = item["start_time"]
     urls = item["request_url"]

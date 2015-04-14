@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 
+import numpy
 import MySQLdb
 import config_private as config 
 import string
@@ -81,6 +82,10 @@ class TimeLine:
         energy_per_byte_wifi = -1
         energy_per_byte_cellular = -1
 
+        if energy > 0 and size_up + size_down <= 0:
+            print "ERROR!!!", start_time, userid, app, energy, content_type, size_up, size_down, is_encrypted, is_wifi
+            exit()
+        
         if is_wifi:
             energy_wifi = energy 
             if size_up + size_down > 0:
@@ -123,8 +128,8 @@ class TimeLine:
 
             energy = item["active_energy"] + item["passive_energy"]
             content_type = "none"
-            size_up = item["ul_rate_payload_h"]
-            size_down = item["dl_rate_payload_h"] 
+            size_up = item["total_ul_whole"]
+            size_down = item["total_dl_whole"] 
 
             self.__add_flow_item_helper(start_time, userid, app, energy,\
                     content_type, size_up, size_down, is_encrypted, \
@@ -135,7 +140,10 @@ class TimeLine:
                 energy_down, energy_up = energies[i].split(",")
                 energy = float(energy_down) + float(energy_up)
                 content_type = content_types[i]
-                size_up = int(sizes[i])
+                size_up = int(sizes[i]) + item["total_ul_payload_h"]/len(sizes) + item["total_dl_payload_h"]/len(sizes)
+                if size_up == 0:
+                    size_up = (item["total_ul_whole"] +  item["total_dl_whole"])/len(sizes)
+
                 size_down = 0
                 timestamp = float(timestamps[i].split(",")[0])
             except:
@@ -210,6 +218,66 @@ class TimeLine:
             energy_per_byte_cellular = -1
 
         return (bandwidth_up, bandwidth_down, bandwidth_up_encrypted, bandwidth_down_encrypted, energy_wifi, energy_cellular, energy_per_byte_wifi, energy_per_byte_cellular)
+    
+    def fetch_data_median(self, filter_columns, hour):
+        query = "SELECT bandwidth_up, bandwidth_down, bandwidth_up_encrypted, bandwidth_down_encrypted, energy_wifi, energy_cellular, energy_per_byte_wifi, energy_per_byte_cellular "
+
+        group_by = "hour"
+        if filter_columns:
+            query += "," + ", ".join(filter_columns)
+            group_by += "," + ", ".join(filter_columns)
+        query += (" FROM "+ self.table_name + " where hour = " + str(hour) + "  GROUP BY " + group_by)
+
+
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+
+        bandwidth_up = []
+        bandwidth_down = []
+        bandwidth_up_encrypted = []
+        bandwidth_down_encrypted = []
+        energy_wifi = []
+        energy_cellular = []
+        energy_per_byte_wifi = []
+        energy_per_byte_cellular = []
+
+        last_app = None
+        last_content_type = None
+        for row in cursor.fetchall():
+            if row[8] != last_app and row[9] != last_content_type and \
+                    last_app != None and last_content_type != None:
+
+                yield numpy.mean(bandwidth_up), numpy.mean(bandwidth_down), \
+                        numpy.mean(bandwidth_up_encrypted), \
+                        numpy.mean(bandwidth_down_encrypted), \
+                        numpy.mean(energy_wifi), numpy.mean(energy_cellular), \
+                        numpy.mean(energy_per_byte_wifi), \
+                        numpy.mean(energy_per_byte_cellular), \
+                        last_app, last_content_type
+
+                bandwidth_up = []
+                bandwidth_down = []
+                bandwidth_up_encrypted = []
+                bandwidth_down_encrypted = []
+                energy_wifi = []
+                energy_cellular = []
+                energy_per_byte_wifi = []
+                energy_per_byte_cellular = []
+
+            bandwidth_up.append(row[0])
+            bandwidth_down.append(row[1])
+            bandwidth_up_encrypted.append(row[2])
+            bandwidth_down_encrypted.append(row[3])
+            energy_wifi.append(row[4])
+            energy_cellular.append(row[5])
+            energy_per_byte_wifi.append(row[6])
+            energy_per_byte_cellular.append(row[7])
+
+            last_app = row[8]
+            last_content_type = row[9]
+
+        for row in cursor.fetchall():
+            yield row
 
     def fetch_data_averages(self, filter_columns, hour):
         query = "SELECT avg(nullif(bandwidth_up, -1)), avg(nullif(bandwidth_down, -1)) , avg(nullif(bandwidth_up_encrypted, -1)), avg(nullif(bandwidth_down_encrypted, -1)), avg(nullif(energy_wifi, -1)), avg(nullif(energy_cellular, -1)), avg(nullif(energy_per_byte_wifi,-1)), avg(nullif(energy_per_byte_cellular, -1)) "

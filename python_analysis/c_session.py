@@ -127,6 +127,7 @@ class CFlow(CLogs):
             "passive_energy",\
             "start_time", \
             "tmp_start_time",\
+            "fg_log",\
             "first_ul_pl_time", \
             "first_dl_pl_time",\
             "last_ul_pl_time", \
@@ -168,6 +169,7 @@ class CFlow(CLogs):
                 float,\
                 float, \
                 float,\
+                self.clean_c_string,\
                 float,\
                 float,\
                 float,\
@@ -200,7 +202,8 @@ class CFlow(CLogs):
 if __name__ == "__main__":
     """ For testing only at this point"""
     flows = CFlow()
-    flows.load_data(100)
+    flows.load_data()
     for item in flows.data:
-
-        print item 
+        if len(item["fg_log"][0]) > 0:
+            print item["fg_log"]
+            print item

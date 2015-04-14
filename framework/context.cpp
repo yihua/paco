@@ -282,6 +282,10 @@ string Context::getFolder() {
 	return (lastFolder + "\n" + currFolder);
 }
 
+string Context::getCurrFolder() {
+    return currFolder;
+}
+
 void Context::setFolder(string s) {
 	lastFolder = currFolder;
 	currFolder = s;

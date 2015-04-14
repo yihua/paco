@@ -76,6 +76,16 @@ void FlowAbstract::printAddr(in_addr addr1, in_addr addr2) {
                 << "." << ((addr2.s_addr & 0xFF00) >> 8) << "." << (addr2.s_addr & 0xFF) << endl;
 }
 
+void FlowAbstract::printAddr(TCPFlow* flow) {
+    unsigned int addr1 = flow->clt_ip, addr2 = flow->svr_ip;
+    cout << ((addr1 & 0xFF000000) >> 24) << "." << ((addr1 & 0xFF0000) >> 16)
+            << "." << ((addr1 & 0xFF00) >> 8) << "." << (addr1 & 0xFF)
+            << ":" << flow->clt_port
+            << " | " << ((addr2 & 0xFF000000) >> 24) << "." << ((addr2 & 0xFF0000) >> 16)
+            << "." << ((addr2 & 0xFF00) >> 8) << "." << (addr2 & 0xFF)
+            << ":" << flow->svr_port << endl;
+}
+
 void FlowAbstract::bswapIP(struct ip* ip) {
 	ip->ip_len=bswap16(ip->ip_len);
 	ip->ip_id=bswap16(ip->ip_id);
@@ -129,7 +139,7 @@ void FlowAbstract::writeTCPFlowStat(Result* result, TCPFlow* tcpflow) {
         tcpflow->fgLog.append("|");
     }
 
-	int size = tcpflow->http_ts_log.length() + tcpflow->energy_log.size() +
+	int size = tcpflow->fgLog.length() + tcpflow->http_ts_log.length() + tcpflow->energy_log.size() +
                 tcpflow->content_type.size() + tcpflow->user_agent.size() +
 				tcpflow->host.size() + tcpflow->content_length.size() + 
                 tcpflow->full_url.size() + 1000;
@@ -290,6 +300,12 @@ void FlowAbstract::writeRateStat(Result* result, const User* user, int dir) {
 	}
 }
 
+void printCheckPoint(Context& traceCtx, string label) {
+    if (traceCtx.getCurrFolder().compare("/nfs/beirut1/userstudy/2nd_round/201308/141.212.110.143/imap-2013-08-31-07-46-16-353091053686962") > 0 && traceCtx.getPacketNo() > 4166) {
+        cout << traceCtx.getCurrFolder() << " " << traceCtx.getPacketNo() << " " << label << endl;
+    }
+}
+
 void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struct pcap_pkthdr *header, const u_char *pkt_data) {
 	packet_count++;
 	/*
@@ -316,6 +332,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 
     traceCtx.updateForegroundApp(traceCtx.getUserID(), ts);
 
+
+    //cout << traceCtx.getFolder() << endl;
 	if (ts - last_ts < 0) {
 		cout << "------------- Packets orders not correct!!! -----------" << endl;
 		cout << traceCtx.getFolder() << endl 
@@ -488,7 +506,10 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
     			userp->session_dl_ip_payload += ip_payload_len;
     		}
     	}
-		// Power Analysis
+		
+        //printCheckPoint(traceCtx, "point 1");
+        
+        // Power Analysis
 		
 		if (userp->appUpBytes.find(appName) == userp->appUpBytes.end()) {
 			userp->appUpBytes[appName] = 0;
@@ -497,6 +518,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			userp->appEnergy[appName] = 0;
 		}
 		double pktEnergy = 0.0, passiveEnergy = 0.0;
+
         if (traceCtx.getNetworkType() == Context::NETWORK_TYPE_CELLULAR
             && tmpDirection >= 0) {
             // cellular power
@@ -609,6 +631,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
             userp->last_epkt_time = ts;
         }
 		
+        //printCheckPoint(traceCtx, "point 2");
+
 		/* TCP Concurrency statistics*/
 		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_SPGW) &&
 			ts - userp->last_cc_sample_time > CC_SAMPLE_PERIOD &&
@@ -645,9 +669,10 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					if (flag)
 						overlap++;
 				}
-
+                //printCheckPoint(traceCtx, "point 2.0");
 				if (userp->cc_start - flow_it->second->last_tcp_ts > FLOW_MAX_IDLE_TIME) {
 					//cout << packet_count << " write" << endl;
+                    //printCheckPoint(traceCtx, "point 2.1");
                     if (flow_it->second->flowIndex.compare(userp->last_flow_index) == 0) {
                         if (userp->last_flow_valid) {
                             if (flow_it_last != userp->tcp_flows.end()) {
@@ -660,13 +685,16 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                         userp->last_flow_valid = false;
                     }
 
-
+                    //printCheckPoint(traceCtx, "point 2.2");
 					writeTCPFlowStat(result, flow_it->second);
-					//cout << packet_count << " erase" << endl;
+					//cout << "MAX_IDLE erase ";
+                    //printAddr(flow_it->second);
+                    //printCheckPoint(traceCtx, "point 2.2.5");
 					userp->tcp_flows.erase(flow_it++);
+                    //printCheckPoint(traceCtx, "point 2.3");
 					//cout << "write finish" << endl;
 					//flow_it++;
-				} else if (userp->cc_start > flow_it->second->last_tcp_ts && 
+				} /*else if (userp->cc_start > flow_it->second->last_tcp_ts && 
 					flow_it->second->flow_finish) {
                     if (flow_it->second->flowIndex.compare(userp->last_flow_index) == 0) {
                         if (userp->last_flow_valid) {       
@@ -679,8 +707,10 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                     }
 
 					writeTCPFlowStat(result, flow_it->second);
+                    cout << "FINISH erase ";
+                    printAddr(flow_it->second);
 					userp->tcp_flows.erase(flow_it++);
-				} else {
+				}*/ else {
 					flow_it++;
 				}
 			}
@@ -695,6 +725,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_SPGW))
 				userp->is_sample = false;
 		}
+
+        //printCheckPoint(traceCtx, "point 3");
 		/*
 		 * Layer 4 (Transport Layer) processing
 		 */
@@ -818,14 +850,57 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 										intToString(ip_clt) + ":" + intToString(port_clt);
 
 					flow_it_tmp = userp->tcp_flows.find(flow_index);
-
+                    
+                    //printCheckPoint(traceCtx, "point 4");
 					//char buf[50];
 					//sprintf(buf, "%.6f %" PRIu64 "", ts, flow_index);
 					//sprintf(buf, "%.6f", ts);
                     bool flow_valid = false;
 					if (flow_it_tmp != userp->tcp_flows.end()) {
+                        if (tcp_hdr->syn != 0 && (b1 && !b2) &&
+                          flow_it_tmp->second->flow_finish) {
+                            
+                            if (flow_it_tmp->second->flowIndex.compare(userp->last_flow_index) == 0) {
+                                if (userp->last_flow_valid) {
+                                    if (flow_it_last != userp->tcp_flows.end()) {
+                                        userp->tcp_flows[userp->last_flow_index]->active_energy += pktEnergy;
+                                        userp->tcp_flows[userp->last_flow_index]->passive_energy += passiveEnergy;
+                                    } else {
+                                        cout << "Flow not found, cannot add energy!!!!" << endl;    
+                                    }                                      
+                                }
+                                userp->last_flow_valid = false;
+                            }
+                            writeTCPFlowStat(result, flow_it_tmp->second);
+                            //cout << "SAME SYN erase ";
+                            //printAddr(flow_it_tmp->second);
+                            userp->tcp_flows.erase(flow_it_tmp);
+                            flow_valid = true;
+                            userp->tcp_flows[flow_index] = new TCPFlow();
+                            flow = userp->tcp_flows[flow_index];
+                            
+                            flow->clt_ip = ip_clt; //init a flow
+                            flow_count++;
+                            
+                            //userp->tcp_flows[flow_index] = flow;
+                            flow->flowIndex = flow_index;
+                            flow->idle_time_before_syn = ts - userp->last_packet_time;
+                            flow->svr_ip = ip_svr;
+                            flow->clt_port = port_clt;
+                            flow->svr_port = port_svr;
+                            flow->start_time = ts;
+                            flow->end_time = ts;
+                            flow->last_tcp_ts = ts;
+                            flow->tmp_start_time = -1;
+                            flow->networkType = traceCtx.getNetworkType();
+
+                        }
+
 						flow = userp->tcp_flows[flow_index];
                         flow_valid = true;
+
+                        //cout << traceCtx.getPacketNo() << " " << ts << " FLOW/FOUND ";
+                        //printAddr(flow);
 						//found flow
 					//} else {
 					} else if (flow_it_tmp == userp->tcp_flows.end() && (tcp_hdr->syn) != 0 && (b1 && !b2)) {
@@ -850,6 +925,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						flow->tmp_start_time = -1;
                         flow->networkType = traceCtx.getNetworkType();
 
+                        //cout << traceCtx.getPacketNo() << " " << ts << " NO_FLOW/UP_SYN ";
+                        //printAddr(flow);
 
 						// new burst/background notification
 						/*
@@ -926,11 +1003,17 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 							flow->end_time = ts;
 							flow->last_tcp_ts = ts;
                             flow->networkType = traceCtx.getNetworkType();
+
+                            //cout << traceCtx.getPacketNo() << " " << ts << " NO_FLOW/PAYLOAD ";
+                            //printAddr(flow);
 						} else {
-							break;
+                            //cout << traceCtx.getPacketNo() << " " << ts << " NO_FLOW/NO_PAYLOAD_or_FIN/RST *";
+                            //printAddr(flow);
+                            //printAddr(ip_hdr->ip_src, ip_hdr->ip_dst);                      
+                            break;
 						}
 					}
-                    
+                    //printCheckPoint(traceCtx, "point 5");
                     // flow level power analysis, note that the pktEnergy and passiveEnergy are for the last packet for the same user
                     
                     // attach foreground information
@@ -959,6 +1042,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                             //continue background
                         }
                     }
+                    //printCheckPoint(traceCtx, "point 6");
 
                     flow_it_last = userp->tcp_flows.find(userp->last_flow_index);
                     if (userp->last_flow_valid) {
@@ -994,6 +1078,16 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						//flow->print((tcp_hdr->fin) | (tcp_hdr->rst));
 						flow->last_tcp_ts = ts;
 						flow->flow_finish = true;
+                           
+                        /*
+                        if (tcp_hdr->fin != 0) {
+                            cout << "FIN pkt." << endl;
+                        }
+                        if (tcp_hdr->rst != 0) {
+                            cout << "RST pkt." << endl;
+                        }
+                        */
+
 						//delete this flow
 						//writeTCPFlowStat(result, flow);
 						//userp->tcp_flows.erase(flow_index);

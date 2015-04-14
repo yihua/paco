@@ -15,11 +15,24 @@ limit = -1
 parser = argparse.ArgumentParser()
 parser.add_argument('--top_hosts', action='store_true')
 parser.add_argument('--top_hosts_energy', action='store_true')
+parser.add_argument('--top_hosts_data_to_energy', action='store_true')
+parser.add_argument('--top_hosts_data_to_energy_overall', action='store_true')
 parser.add_argument('--user_by_time', action='store_true')
 parser.add_argument('--user_by_host', action='store_true')
 parser.add_argument('--content', action='store_true')
 parser.add_argument('--host_user_distribution', action='store_true')
 args = parser.parse_args()
+
+if not args.top_hosts \
+        and not args.top_hosts_energy \
+        and not args.top_hosts_data_to_energy \
+        and not args.top_hosts_data_to_energy_overall \
+        and not args.user_by_time \
+        and not args.user_by_host \
+        and not args.content \
+        and not args.host_user_distribution:
+    print "Error: no option!"
+    exit()
 
 flows = c_session.CFlow()
 flows.load_data(limit)
@@ -268,6 +281,60 @@ if args.top_hosts_energy:
     f.close()
 
 #################################################################################
+#   Find top data to energy ratio
+#################################################################################
+
+
+if args.top_hosts_data_to_energy:
+    top_energy = defaultdict(float)
+    for hour in hours:
+        for row in timeline.fetch_data(["app"], hour):
+            (bandwidth_up, bandwidth_down, bandwidth_up_encrypted, \
+                    bandwidth_down_encrypted, energy_wifi, \
+                    energy_cellular, energy_per_byte_cellular, \
+                    energy_per_byte_wifi, host) = row
+            if float(bandwidth_up +  bandwidth_down) > 0:
+                top_energy[host] += float(energy_wifi + energy_cellular)/float(bandwidth_up +  bandwidth_down)
+
+    keys = sorted(top_energy.items(), key=operator.itemgetter(1), reverse=True)
+    f = open("output_files/top_energy_ratio_hosts.txt", "w")
+    for i in range(len(keys)):
+        if i < len(keys):
+            print >>f, keys[i][0], keys[i][1]
+    f.close()
+
+#################################################################################
+#   Find top data to energy ratio
+#################################################################################
+
+
+if args.top_hosts_data_to_energy_overall:
+    top_energy = defaultdict(float)
+    top_data = defaultdict(float)
+    for hour in hours:
+
+        for row in timeline.fetch_data(["app"], hour):
+            (bandwidth_up, bandwidth_down, bandwidth_up_encrypted, \
+                    bandwidth_down_encrypted, energy_wifi, \
+                    energy_cellular, energy_per_byte_cellular, \
+                    energy_per_byte_wifi, host) = row
+            if float(bandwidth_up +  bandwidth_down) > 0:
+                top_energy[host] += float(energy_wifi + energy_cellular)
+                top_data[host] += float(bandwidth_up +  bandwidth_down)
+
+    top_ratio = defaultdict(float)
+
+    for k, v in top_energy.iteritems():
+        if k in top_data and top_data[k] != 0:
+            top_ratio[k] = v/top_data[k]
+
+    keys = sorted(top_ratio.items(), key=operator.itemgetter(1), reverse=True)
+    f = open("output_files/top_energy_ratio_hosts_overall.txt", "w")
+    for i in range(len(keys)):
+        if i < len(keys):
+            print >>f, keys[i][0], keys[i][1]
+    f.close()
+#################################################################################
 #  Make plot by user 
 #################################################################################
 
@@ -296,7 +363,8 @@ if args.content:
     interesting_apps.append("all")
 
     interesting_content_type = ["image/jpg", "image/svg+xml", \
-            "image/gif", "image/webp", "image/jpeg", "image/png"]
+            "image/gif", "image/webp", "image/jpeg", "image/png", \
+            "text/xml", "text/json", "text/html", "text/javascript"]
 
     app_files = {}
     for app in interesting_apps:
@@ -311,24 +379,29 @@ if args.content:
         content_data = {}
         for app in interesting_apps:
             content_data[app] = [[] for i in range(len(interesting_content_type))]
+        
+        for row in timeline.fetch_data_median(["content_type", "app"], hour):
 
-        for row in timeline.fetch_data_averages(["content_type", "app"], hour):
             (bandwidth_up, bandwidth_down, bandwidth_up_encrypted, bandwidth_down_encrypted, energy_wifi, energy_cellular, energy_per_byte_wifi, energy_per_byte_cellular, content_type, app) = row
+
             if content_type not in interesting_content_type:
                 continue
+
             content_index = interesting_content_type.index(content_type)
             
             if app not in interesting_apps:
                 continue
+
             content_data[app][content_index] = [bandwidth_up, bandwidth_down, energy_cellular, energy_wifi, energy_per_byte_wifi, energy_per_byte_cellular]
 
-        for row in timeline.fetch_data_averages(["content_type"], hour):
-            (bandwidth_up, bandwidth_down, bandwidth_up_encrypted, bandwidth_down_encrypted, energy_wifi, energy_cellular, energy_per_byte_wifi, energy_per_byte_cellular, app) = row
-            if content_type not in interesting_content_type:
-                continue
-            content_index = interesting_content_type.index(content_type)
-
-            content_data["all"][content_index] = [bandwidth_up, bandwidth_down, energy_cellular, energy_wifi, energy_per_byte_wifi, energy_per_byte_cellular]
+#        for row in timeline.fetch_data_median(["content_type"], hour):
+#
+#            (bandwidth_up, bandwidth_down, bandwidth_up_encrypted, bandwidth_down_encrypted, energy_wifi, energy_cellular, energy_per_byte_wifi, energy_per_byte_cellular, content_type) = row
+#            if content_type not in interesting_content_type:
+#                continue
+#            content_index = interesting_content_type.index(content_type)
+#
+#            content_data["all"][content_index] = [bandwidth_up, bandwidth_down, energy_cellular, energy_wifi, energy_per_byte_wifi, energy_per_byte_cellular]
 
 
         for appname, content in content_data.iteritems():

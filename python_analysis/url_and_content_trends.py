@@ -7,7 +7,8 @@ import sys
 import numpy
 from  IPy import IP
 
-browser_list = ["com.android.chrome", "com.android.browser", "org.mozilla.firefox", "mobi.mgeek.TunnyBrowser"]
+#browser_list = ["com.android.chrome", "com.android.browser", "org.mozilla.firefox", "mobi.mgeek.TunnyBrowser"]
+browser_list = []
 
 def print_distribution(l, f, suffix=""):
     print >>f, suffix, max(l), numpy.median(l), min(l), numpy.mean(l), numpy.std(l)
@@ -287,14 +288,20 @@ class ContentType:
         self.sizes = []
         self.energy_cellular = []
         self.energy_wifi = []
+        self.energy_cellular_ratio = []
+        self.energy_wifi_ratio = []
 
 
     def add_content_type(self, size, energy, is_wifi):
         self.sizes.append(size)
         if is_wifi:
             self.energy_wifi.append(energy)
+            if size > 0:
+                self.energy_wifi_ratio.append(energy/size)
         else:
             self.energy_cellular.append(energy)
+            if size > 0:
+                self.energy_cellular_ratio.append(energy/size)
 
     def printline(self, k2, f):
         if len(self.sizes) > 0:
@@ -321,11 +328,33 @@ class ContentType:
             energy_wifi = -1
             energy_wifi_max = -1
             energy_wifi_min = -1
+    
+        if len(self.energy_wifi_ratio) > 0:
+            energy_wifi_ratio = numpy.median(self.energy_wifi_ratio)
+            energy_wifi_ratio_max = numpy.percentile(self.energy_wifi_ratio, 95)
+            energy_wifi_ratio_min = numpy.percentile(self.energy_wifi_ratio, 5)
+        else:
+            energy_wifi_ratio = -1
+            energy_wifi_ratio_max = -1
+            energy_wifi_ratio_min = -1
+
+        if len(self.energy_cellular_ratio) > 0:
+            energy_cellular_ratio = numpy.median(self.energy_cellular_ratio)
+            energy_cellular_ratio_max = numpy.percentile(self.energy_cellular_ratio, 95)
+            energy_cellular_ratio_min = numpy.percentile(self.energy_cellular_ratio, 5)
+        else:
+            energy_cellular_ratio = -1
+            energy_cellular_ratio_max = -1
+            energy_cellular_ratio_min = -1
 
         print >>f, "\t", k2, sizes, sizes_max, sizes_min, len(self.sizes), \
                 energy_cellular, energy_cellular_max, energy_cellular_min, \
                 len(self.energy_cellular), energy_wifi, energy_wifi_max, \
-                energy_wifi_min, len(self.energy_wifi)
+                energy_wifi_min, len(self.energy_wifi),energy_wifi_ratio, \
+                energy_wifi_ratio_max, energy_wifi_ratio_min, \
+                len(self.energy_wifi_ratio), energy_cellular_ratio, \
+                energy_cellular_ratio_max, energy_cellular_ratio_min, \
+                len(self.energy_cellular_ratio)
 
 class SubUrl:
     def __init__(self, host):
@@ -559,8 +588,8 @@ for item in flows.data:
         continue
     lines_processed += 1
     app = item["app_name"].split(":")[0]
-    size_up = item["total_dl_payload_h"]
-    size_down = item["total_ul_payload_h"]
+    size_up = item["total_dl_whole"]
+    size_down = item["total_ul_whole"]
     content_type = item["content_type"]
     time = item["start_time"]
     urls = item["request_url"]

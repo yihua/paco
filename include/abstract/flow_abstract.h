@@ -119,7 +119,7 @@ class FlowAbstract: public TrafficAbstract{
     //Also find hard-coded server address: umich block
 	bool isControlledServer(in_addr addr);
 	void printAddr(in_addr addr1, in_addr addr2);
-
+    void printAddr(TCPFlow* flow);
     // Write complete data on TCP flow to a file
 	void writeTCPFlowStat(Result* result, TCPFlow* tcpflow);
     // Summary of user session: write user struct to file

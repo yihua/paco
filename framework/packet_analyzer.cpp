@@ -140,10 +140,12 @@ void PacketAnalyzer::run() {
             // cellular trace
 			mTraceCtx.setEtherLen(16);
             mTraceCtx.setNetworkType(Context::NETWORK_TYPE_CELLULAR);
+            //cout << "Cellular: " << *it << endl;
 		} else {
             // Wi-Fi trace
 			mTraceCtx.setEtherLen(14);
             mTraceCtx.setNetworkType(Context::NETWORK_TYPE_WIFI);
+            //cout << "Wi-Fi: " << *it << endl;
             //cout << "WiFi Trace: " << *it << endl;
 			//if (mConfigParam.isTraceType(CONFIG_PARAM_TRACE_DEV)) {
 			//	trace_count++;

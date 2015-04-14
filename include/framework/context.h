@@ -12,7 +12,7 @@
 #include "common/stl.h"
 #include "common/io.h"
 
-#define FG_PREFIX "/nfs/beirut1/userstudy/2nd_round/active_fg_sort_"
+#define FG_PREFIX "/nfs/beirut1/userstudy/2nd_round/active/active_fg_sort_"
 
 class Context {
 private:
@@ -75,6 +75,7 @@ public:
     bool isScreenOn();
     bool isForeground(string appName);
     string getFolder();
+    string getCurrFolder();
     void setFolder(string s);
     
     void incrPacketNo();
