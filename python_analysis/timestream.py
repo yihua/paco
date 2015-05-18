@@ -123,7 +123,17 @@ class AttributeItem:
             if k not in self.other_data:
                 self.other_data[k] = []
             self.other_data[k].append(v)
-        pass
+    
+    def match_attribute(self, attribute):
+        """
+        Return -1 if smaller, 0 if the same size, 1 if bigger
+        """
+        if self.begin_time < attribute.begin_time:
+            return -1
+        if self.begin_time > attribute.end_time:
+            return 1
+        else:
+            return 0
 
 class TimestreamItem:
 
@@ -131,7 +141,7 @@ class TimestreamItem:
         """data_start_attributes: a dict of labels and values
         """
         self.user = user
-        self.time = int(float(time)*1000)
+        self.begin_time = int(float(time)*1000)
         self.time_end = int(float(time_end)*1000) # We ignore this in most cases as an approximation...
         self.data = data_start_attributes 
 
@@ -152,10 +162,9 @@ class TimestreamItem:
         """
         Return -1 if smaller, 0 if the same size, 1 if bigger
         """
-
-        if self.time < attribute.begin_time:
+        if self.begin_time < attribute.begin_time:
             return -1
-        if self.time > attribute.end_time:
+        if self.begin_time > attribute.end_time:
             return 1
         else:
             return 0
@@ -201,8 +210,8 @@ def load_timeline(limit=-1):
         end_time = max(item["last_ul_pl_time"], item["last_dl_pl_time"])
         data_start_attributes = {}
         data_start_attributes["flow_host"] = item["app_name"].split(":")[0]
-        data_start_attributes["flow_dl_payload"] = item["total_dl_whole"] 
-        data_start_attributes["flow_ul_payload"] = item["total_ul_whole"] 
+        data_start_attributes["total_dl_whole"] = item["total_dl_whole"] 
+        data_start_attributes["total_ul_whole"] = item["total_ul_whole"] 
         data_start_attributes["flow_content"] = item["content_type"] 
         data_start_attributes["flow_encrypted"] = (len(item["host"]) == 0)
         data_start_attributes["is_wifi"] = (item["network_type"] == 0) 
@@ -214,6 +223,7 @@ def load_timeline(limit=-1):
         data_start_attributes["timestamp_log"] = item["timestamp_log"]
         data_start_attributes["energy_log"] = item["energy_log"]
         data_start_attributes["fg_log"] = item["fg_log"]
+        data_start_attributes["content_length"] = item["content_length"]
 
 #        if "facebook" in item["app_name"]:
 #            print "energy:", time, item["active_energy"], item["passive_energy"], item["total_dl_payload_h"], item["total_ul_payload_h"]
@@ -223,7 +233,7 @@ def load_timeline(limit=-1):
         timeline[user].append(TimestreamItem(user, time, end_time, data_start_attributes))
 
     for user, user_timeline in timeline.iteritems():
-        user_timeline.sort(key=operator.attrgetter("time"))
+        user_timeline.sort(key=operator.attrgetter("begin_time"))
     return timeline
 
 if __name__ == "__main__":

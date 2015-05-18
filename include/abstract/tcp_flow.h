@@ -16,7 +16,7 @@
 
 class TCPFlow {
 public:
-	string flowIndex;
+    string flowIndex;
     u_int svr_ip;
     u_int clt_ip;
     u_short svr_port;
@@ -108,8 +108,9 @@ public:
     string energy_log;
     string http_ts_log;
     string fgLog;
-    double lastFgTime;
-    bool lastFgStatus;
+    
+    double lastStatusTime;
+    int lastStatus;
 
     string full_url;
     

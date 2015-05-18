@@ -13,7 +13,8 @@ RELEASE = 'Release'
 HORIZ = 'Horizontal'
 VERT = 'Vertical'
 
-generate_gestures = True 
+generate_gestures = False 
+print_data = True 
 
 class Sessions():
     """ Determines user sessions, defined by periods of user interactivity with >2 min between each user input
@@ -39,6 +40,16 @@ class Sessions():
         self.session_id = 0
 
     def get_session_data(self, line, username, min_time, max_time):
+        if generate_gestures and len(self.user_gestures) > 1000:                
+            f2 = open("/z/user-study-imc15/PACO/gesture_summary.txt", "a")
+            
+            for k, v in self.user_gestures.iteritems():
+                for item in v:
+                    print >>f2, k, item[0], item[1], item[2], item[3], item[4], item[5], item[6]
+
+            f2.close()
+            self.user_gestures.clear()
+
         line = line.split()
 
         # Session data can sometimes get mangled
@@ -138,9 +149,9 @@ class Sessions():
         if username in self.last_session_end_time and \
                 username in self.last_session_start_time:
 
-            if time - self.last_session_end_time[username] > self.time_interval or line[1] == POWER_KEY or line[1] == HOME_KEY:
+            if time - self.last_session_end_time[username] > self.time_interval or line[1] == POWER_KEY:# or line[1] == HOME_KEY:
 
-#                print line
+                #print line
                 assert(self.last_session_end_time[username] >= \
                         self.last_session_start_time[username])
                 
@@ -177,14 +188,15 @@ class Sessions():
 
     def generate_session_log(self, generate_gestures, limit=-1):
         load_data(self.get_session_data, limit)
-        f = open("/z/user-study-imc15/PACO/user_session_summary.txt", "w")
-        for k, v in self.user_sessions.iteritems():
-            for item in v:
-                print >>f, k, item[1], item[0], item[2], item[3], item[4], item[5], item[6], item[7]
+        if print_data:
+            f = open("/z/user-study-imc15/PACO/user_session_summary.txt", "w")
+            for k, v in self.user_sessions.iteritems():
+                for item in v:
+                    print >>f, k, item[1], item[0], item[2], item[3], item[4], item[5], item[6], item[7]
 #                print  k, item[1], item[0], item[2], item[3], item[4]
         
         if generate_gestures:
-            f2 = open("/z/user-study-imc15/PACO/gesture_summary.txt", "w")
+            f2 = open("/z/user-study-imc15/PACO/gesture_summary.txt", "a")
             
             for k, v in self.user_gestures.iteritems():
                 for item in v:
@@ -279,8 +291,12 @@ def load_data(process_function, limit=-1):
 
 
 if __name__ == "__main__":
+    if print_data: 
+        f2 = open("/z/user-study-imc15/PACO/gesture_summary.txt", "w")
+        f2.close()
     sessions = Sessions()
     limit = -1
+#    limit = 100
 #    if generate_gestures:
 #        limit = 236660
     sessions.generate_session_log(generate_gestures, limit)

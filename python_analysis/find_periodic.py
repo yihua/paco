@@ -31,7 +31,6 @@ class PeriodicData:
     def printme(self, f):
         print >>f, "\t", self.host_name, self.data, self.active_energy, self.passive_energy
 
-
 def get_data_validate():
     #users = ["a", "b", "c"]
     users = ["a"]
@@ -123,7 +122,6 @@ def detect_periodicity(timeline_user_app, user, appname, candidate_periods, cand
                     candidate_other_data[i] += total_counter[i-2][j]
                     candidate_requests[i].append(items[i-2][j])
 
-
 def evaluate_periodicity(candidate_periods, candidate_other_data, candidates_request, appname, f):
     candidates_to_sort = {}
     for k, v in candidate_periods.iteritems():
@@ -140,7 +138,6 @@ def evaluate_periodicity(candidate_periods, candidate_other_data, candidates_req
         if i == 0:
             for item in candidates_reqest:
                 item.printme(f)
-                
 
 # Deprecated
 def format_data_fft(test_data):

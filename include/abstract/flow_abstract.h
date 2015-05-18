@@ -124,8 +124,10 @@ class FlowAbstract: public TrafficAbstract{
 	void writeTCPFlowStat(Result* result, TCPFlow* tcpflow);
     // Summary of user session: write user struct to file
 	void writeSessionStat(Result* result, const User* user);
+    void writeCycleStat(Result* result, const User* user);
 	void writeRateStat(Result* result, const User* user, int dir);
 	double writePowerStat(Result* result, User* user, double currTs, int networkType);
+    double getTailTime(Result* result, User* user, double currTs, int networkType);
 	string traceType;
 
 	int ETHER_HDR_LEN;

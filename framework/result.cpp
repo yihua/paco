@@ -14,17 +14,22 @@ Result::Result() {
 	//result_tmp = new map<int, string>();
 }
 
-void Result::addResultFile(int tag, string path) {
+void Result::addResultFile(int tag, string path, int thres) {
 	result_files[tag] = path;
 	ofstream o;
 	o.open(path.c_str());
 	o.close();
 	result_tmp[tag] = "";
+    if (thres > 0) {
+        maxBufSize[tag] = thres;
+    } else {
+        maxBufSize[tag] = MAX_BUF_SIZE;
+    }
 }
 
 void Result::addResultToFile(int tag, char *result) {
 	result_tmp[tag] += result;
-	if (result_tmp[tag].size() > MAX_BUF_SIZE) {
+	if (result_tmp[tag].size() > maxBufSize[tag]) {
 		ofstream o;
 		o.open(result_files[tag].c_str(), ios::out | ios::app);
 		o << result_tmp[tag];
@@ -37,7 +42,7 @@ void Result::addResultToFile(int tag, char *result) {
 
 void Result::addResultToFile(int tag, string result) {
         result_tmp[tag] += result;
-        if (result_tmp[tag].size() > MAX_BUF_SIZE) {
+        if (result_tmp[tag].size() > maxBufSize[tag]) {
                 ofstream o;
                 o.open(result_files[tag].c_str(), ios::out | ios::app);
                 o << result_tmp[tag];

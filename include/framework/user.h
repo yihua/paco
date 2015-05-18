@@ -12,10 +12,14 @@
 #include "common/stl.h"
 
 #include "abstract/tcp_flow.h"
+#include "abstract/packet_flow.h"
 
 #define USER_SESSION_IDLE 60.0 // s
 #define USER_RATE_BIN 1.0 // s
 #define ENERGY_BIN 1.0 // s
+
+#define CYCLE_TIME 86400 // s, 1 day
+#define DEFAULT_CYCLE_START 1346472000
 
 struct string_less {
     bool operator() (const string& lhs, const string& rhs) const {
@@ -28,7 +32,7 @@ public:
 	string userID;
     double start_time;
     double last_packet_time;
-    int last_epkt_time;
+    double last_epkt_time;
     int last_packet_dir;
     double energy_bin_start;
     int last_bin_network;
@@ -38,6 +42,9 @@ public:
     double cc_start;
     double last_cc_sample_time;
     int last_payload;
+
+    double lastCycleStartTime;
+    double cycleTransferTime[2], cycleTailTime[2], cycleTransferEnergy[2], cycleTailEnergy[2], cycleTCPTransferEnergy[2], cycleTCPTailEnergy[2];
 
     double bw_bin_ul_start_time, bw_bin_ul_end_time;
     uint64 bw_bin_ul_ip_all, bw_bin_ul_ip_payload; 
@@ -57,6 +64,9 @@ public:
     bool is_sample;
 
     map<string, TCPFlow*> tcp_flows;
+    PacketFlow tcpPacketFlow, appPacketFlow;
+
+
     map<string, double> appEnergy;
     map<string, double> appLastTime;
     map<string, int> appUpBytes;
@@ -69,6 +79,8 @@ public:
     int http_req_stat_size;
 
     User();
+    bool isInCycle(double currentTime);
+    void resetCycleStat(double currentTime);
     void resetRateStat(int dir);
     void resetSessionStat();
     void resetEnergyStat(double currTs);

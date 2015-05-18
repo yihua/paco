@@ -32,12 +32,15 @@ private:
     map<string, ifstream*> infile;
 
     string tmpLine, tmpUID, tmpAppName;
-    int tmpT;
-    map<string, int> tmpTime;
+    double tmpT;
+    int tmpCode;
+    map<string, double> tmpTime;
     //istringstream iss;
-    map<string, set<string> > fgApp;
-    map<string, int> fgTime;
-    map<string, string> fgAppLastLine;
+    //map<string, set<string> > fgApp;
+    map<string, map<string, int> > appStatus;
+
+    //map<string, int> fgTime;
+    map<string, string> appLastLine;
 
     void printFgApp(string uid);
 	double getTimestamp(string s);
@@ -54,8 +57,10 @@ public:
     const static int NETWORK_TYPE_CELLULAR = 1;
 
     Context();
-    void updateForegroundApp(string uid, double ts);
-    bool isForeground(string uid, string appName);
+    //void updateForegroundApp(string uid, double ts);
+    void updateAppStatus(string uid, double ts);
+    int getAppStatus(string uid, string appName);
+    //bool isForeground(string uid, string appName);
     void setEtherLen(int etherlen);
     int getNetworkType();
     void setNetworkType(int type);

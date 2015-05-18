@@ -17,15 +17,16 @@ Context::Context() {
     //tmpTime = -1;
 }
 
-void Context::printFgApp(string uid) {
+/*void Context::printFgApp(string uid) {
     set<string>::iterator it;
     for (it = fgApp[uid].begin(); it != fgApp[uid].end(); it++) {
         cout << *it << " | ";
     }
     cout << endl;
-}
+}*/
 
 
+/*
 void Context::updateForegroundApp(string uid, double ts) {
     if (tmpTime.find(uid) != tmpTime.end() ) {
         if (ts < double(tmpTime[uid])) {
@@ -104,8 +105,59 @@ void Context::updateForegroundApp(string uid, double ts) {
             }
         }
     }
+}*/
+
+void Context::updateAppStatus(string uid, double ts) {
+    if (tmpTime.find(uid) != tmpTime.end()) {
+        if (ts < tmpTime[uid]) {
+            return;
+        }
+    } else {
+        tmpTime[uid] = -1;
+        string tmpFn(FG_PREFIX);
+        infile[uid] = new ifstream(tmpFn.append(uid).c_str());
+        appLastLine[uid] = "";
+    }
+    
+    //if (appStatus.find(uid) == appStatus.end()) {
+    //    appStatus[uid]
+    //}
+
+    if (appLastLine[uid].length() > 0) {
+        istringstream isst(appLastLine[uid]);
+        isst >> tmpUID >> tmpT >> tmpAppName >> tmpCode;
+
+        tmpTime[uid] = tmpT/1000.0;
+
+        if (tmpTime[uid] > ts)
+            return;
+
+        appStatus[uid][tmpAppName] = tmpCode;
+    }
+
+    while (std::getline(*(infile[uid]), appLastLine[uid])) {
+        istringstream iss(appLastLine[uid]);
+        iss >> tmpUID >> tmpT >> tmpAppName >> tmpCode;
+        
+        tmpTime[uid] = tmpT/1000.0;
+        if (tmpTime[uid] > ts) {
+            return;
+        }
+
+        appStatus[uid][tmpAppName] = tmpCode;
+    }
 }
 
+int Context::getAppStatus(string uid, string appName) {
+    if (appStatus.find(uid) == appStatus.end()) {
+        return -1;
+    } else if (appStatus[uid].find(appName) == appStatus[uid].end()) {
+        return -1;
+    } else {
+        return appStatus[uid][appName];
+    }
+}
+/*
 bool Context::isForeground(string uid, string appName) {
     if (fgApp.find(uid) == fgApp.end()) {
         return false;
@@ -116,7 +168,7 @@ bool Context::isForeground(string uid, string appName) {
     }
     return true;
 }
-
+*/
 void Context::setEtherLen(int etherlen){
     ETHER_HDR_LEN = etherlen;
 }

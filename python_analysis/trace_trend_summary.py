@@ -8,6 +8,7 @@ import socket
 import operator
 import sys
 import argparse
+import numpy
 
 limit = -1 
 #limit = 10000

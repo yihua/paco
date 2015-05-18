@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import re
 
 class CLogs:
     """Superclass for loading and parsing C logs """
@@ -10,15 +11,20 @@ class CLogs:
         self.data_format_types = data_format_types
 #        self.load_data()
 
-    def load_data(self, limit=-1):
+    def load_data(self, limit=-1, app_filter=None, min_time = -1, max_time = -1):
 
         f =open(self.filename)
         for line in f:
             if limit != -1:
                 limit -= 1
+
+            if app_filter != None:
+                if app_filter not in line:
+                    continue
             line = line.strip()
             line = line.split(" ")
-
+            if len(line) == 1:
+                line = line[0].split("\t")
             # Some lines are mangled...
             # This should happen rarely though
             if len(line) != len(self.data_format_labels) or len(line) != len(self.data_format_types):
@@ -30,18 +36,58 @@ class CLogs:
             # becomes ["a", 1, 2]
             line = [datatype(val) for (datatype, val) in zip(self.data_format_types, line)]
 
+
             new_item= dict(zip(self.data_format_labels, line)) 
+
+            if min_time > -1 and "start_time" in new_item and new_item["start_time"] < min_time:
+                continue
+            if max_time > -1 and "start_time" in new_item and new_item["start_time"] > max_time:
+                break 
+
             self.data.append(new_item)
             if limit == 0:
                 break
 
         f.close()
 
+    def parse_background_code(self, line):
+        line = self.clean_c_string(line)
+        retval = []
+        for item in line:
+            item = re.split(':|,', item)
+            if len(item) == 3:
+                item = [int(item[0]), float(item[1]), float(item[2])]
+                if item[2] > 20000000000:
+                    item[2] = item[2]/1000
+                if item[1] > 20000000000:
+                    item[1] = item[1]/1000
+                retval.append(item)
+        
+        return retval
+            
+    def get_background_code(self, val):
+        if val == -1:
+            return "no_mapping"
+        if val == 400:
+            return "background"
+        if val == 500:
+            return "empty"
+        if val == 100:
+            return "foreground"
+        if val == 130:
+            return "perceptible"
+        if val == 300:
+            return "service" 
+        if val == 200:
+            return "visible" 
+
     def clean_c_string(self, line):
         if "|" not in line:
-            return line
+            return [line]
         retval = []
         line = line.split("|")
+        if line[-1] == "":
+            line = line[:-1]
         last_item = None
         for item in line:
             if item == "*":
@@ -49,6 +95,7 @@ class CLogs:
                     retval.append(last_item)
             else:
                 last_item = item
+
                 retval.append(item)
         return retval
 
@@ -102,11 +149,24 @@ class CRate(CLogs):
  
         CLogs.__init__(self, "rate_summary.txt", data_format_labels, data_format_types)
 
+class CEnergy(CLogs):
+    def __init__(self):
+        data_format_labels = ["userid", \
+                "process_name",\
+                "timestamp", \
+                "energy", \
+                "upbytes", \
+                "downbytes", \
+                "networktype"]
+
+        data_format_types =[str, str, float, float, int, int, int]
+        CLogs.__init__(self, "energy_summary.txt", data_format_labels, data_format_types)
+
 class CFlow(CLogs):
     """ TODO finish
     
     TCP flow specifically"""
-    def __init__(self):
+    def __init__(self, app_filter=None):
    
         parse_port_tuple = lambda x: x.split(":")
 
@@ -169,7 +229,7 @@ class CFlow(CLogs):
                 float,\
                 float, \
                 float,\
-                self.clean_c_string,\
+                self.parse_background_code,\
                 float,\
                 float,\
                 float,\
@@ -197,8 +257,8 @@ class CFlow(CLogs):
                 int,\
                 self.clean_c_string,]
 
-        CLogs.__init__(self,"flow_summary.txt", data_format_labels, data_format_types)
-            
+        CLogs.__init__(self,"flow_summary_copy.txt", data_format_labels, data_format_types)
+        
 if __name__ == "__main__":
     """ For testing only at this point"""
     flows = CFlow()

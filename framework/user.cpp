@@ -58,6 +58,31 @@ User::User() {
     session_dl_tcp_payload = 0;
     session_dl_udp_all = 0;
     session_dl_udp_payload = 0;
+
+    lastCycleStartTime = DEFAULT_CYCLE_START;
+    //resetCycleStat(currentTime);
+}
+
+void User::resetCycleStat(double currentTime) {
+    cycleTransferTime[0] = 0.0;
+    cycleTransferTime[1] = 0.0;
+    cycleTailTime[0] = 0.0;
+    cycleTailTime[1] = 0.0;
+    cycleTransferEnergy[0] = 0.0; 
+    cycleTransferEnergy[1] = 0.0; 
+    cycleTailEnergy[0] = 0.0; 
+    cycleTailEnergy[1] = 0.0; 
+    cycleTCPTransferEnergy[0] = 0.0;
+    cycleTCPTransferEnergy[1] = 0.0;
+    while (lastCycleStartTime + CYCLE_TIME < currentTime) {
+        lastCycleStartTime += CYCLE_TIME;
+    }
+}
+
+bool User::isInCycle(double currentTime) {
+    if (currentTime - lastCycleStartTime <= CYCLE_TIME) 
+        return true;
+    return false;
 }
 
 void User::resetRateStat(int dir) {

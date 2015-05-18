@@ -16,9 +16,10 @@ class Result {
 private:
 	map<int, string> result_files;
 	map<int, string> result_tmp;
+    map<int, int> maxBufSize;
 public:
 	Result();
-	void addResultFile(int tag, string path);
+	void addResultFile(int tag, string path, int thres);
 	void addResultToFile(int tag, char* result);
 	void addResultToFile(int tag, string result);
 	void flush();

@@ -23,13 +23,15 @@ int main() {
 	string test_rate(ROOT_FOLDER "PACO/rate_summary.txt");
 	string test_session(ROOT_FOLDER "PACO/session_summary.txt");
 	string test_power(ROOT_FOLDER "PACO/energy_summary.txt");
+    string test_val(ROOT_FOLDER "PACO/validate.txt");
 
     // We effectively control what data is collected by commenting/uncommenting these
-	result->addResultFile(1, path);
-	result->addResultFile(2, test_flow);
-	result->addResultFile(3, test_rate);
-	result->addResultFile(4, test_session);
-	result->addResultFile(5, test_power);
+	result->addResultFile(1, path, -1);
+	result->addResultFile(2, test_flow, -1);
+	result->addResultFile(3, test_rate, -1);
+	result->addResultFile(4, test_session, -1);
+	result->addResultFile(5, test_power, -1);
+    result->addResultFile(6, test_val, 200);
 
 	PacketAnalyzer analyzer;
 	analyzer.setConfigParam(param);

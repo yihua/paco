@@ -10,17 +10,24 @@ import numpy
 import parse_wifi
 # High-level analysis of top apps
 
-host_rank_file = "output_files/top_energy_ratio_hosts_overall.txt"
-#host_rank_file = "output_files/top_total_hosts.txt"
+#host_rank_file = "output_files/top_energy_ratio_hosts_overall.txt"
+host_rank_file = "output_files/top_total_hosts.txt"
 #host_rank_file = "output_files/top_energy_hosts.txt"
-suffix = "_by_energy_ratio"
-#suffix = "_by_energy"
+#suffix = "_by_energy_ratio"
+suffix = "_by_energy"
 #suffix = ""
+#suffix = "_by_data_limited"
+#suffix = "_by_energy_limited"
 
 appname_mapping = {"/system/bin/mediaserver":"mediaserver",\
         "com.instagram.android":"instagram",\
         "com.bambuna.podcastaddict":"podcastaddict",\
         "android.process.media":"media_process",\
+        "com.yhc.magicbus":"campus_bus",\
+        "com.yahoo.mobile.client.android.weather":"yahoo_weather",\
+        "com.weather.Weather":"weather",\
+        "com.facebook.katana:dash":"facebook",\
+        "com.google.android.gms":"play_services",\
         "com.facebook.katana":"facebook",\
         "com.android.browser":"google_browser",\
         "au.com.shiftyjelly.pocketcasts":"pocketcasts",\
@@ -44,6 +51,26 @@ appname_mapping = {"/system/bin/mediaserver":"mediaserver",\
         "com.sec.android.widgetapp.ap.hero.accuweather":"accuweather_widget",\
         "com.android.email":"android_email",\
         "com.spotify.mobile.android.service":"spotify"}
+
+
+appname_mapping = {"com.bambuna.podcastaddict":"podcastaddict",\
+        "com.google.android.apps.plus":"plus",\
+        "com.instagram.android":"instagram",\
+        "au.com.shiftyjelly.pocketcasts":"pocketcasts",\
+        "com.google.android.youtube":"youtube",\
+        "com.dropbox.android":"dropbox",\
+        "com.facebook.katana":"facebook",\
+        "com.android.browser":"google_browser",\
+        "com.andrewshu.android.reddit":"reddit",\
+        "com.android.chrome":"chrome",\
+        "com.google.android.music":"google_music",\
+        "com.google.android.gm":"gmail",\
+        "com.google.android.apps.maps":"maps",\
+        "com.twitter.android":"twitter",\
+        "com.sina.weibo.servant":"weibo",\
+        "com.weather.Weather":"weather",\
+        "com.sec.spp.push":"samsung_push",\
+        "com.espn.score_center":"espn"}
 
 blacklist = ["com.mobiperf", "com.att.resesarch.mpfstandalone"]
 
@@ -69,6 +96,10 @@ class AppStatistics:
         self.byte_cellular = 0
         self.energy_wifi = 0
         self.energy_cellular = 0
+
+        # by code
+        self.byte_by_fg = defaultdict(int)
+        self.energy_by_fg = defaultdict(int)
         
         self.avg_energy_ratio_cellular = []
         self.avg_energy_ratio_wifi = []
@@ -82,7 +113,7 @@ class AppStatistics:
         self.avg_energy_ratio_session = []
         self.avg_data_session = []
 
-    def add_request(self, size_up, size_down, active_energy, tail_energy, is_encrypted, is_wifi):
+    def add_request(self, size_up, size_down, active_energy, tail_energy, is_encrypted, is_wifi, fg_code, appname, sort_apps):
 
         if is_encrypted:
             self.encrypted += (size_up + size_down)
@@ -102,11 +133,24 @@ class AppStatistics:
             if size_up + size_down > 0:
                 self.avg_energy_ratio_cellular.append((active_energy + tail_energy)/ (size_up + size_down))
 
+        self.byte_by_fg[fg_code] += (size_up + size_down)
+        self.energy_by_fg[fg_code] += (active_energy + tail_energy) 
+
         self.upload += size_up
         self.download += size_down
 
         self.energy_active += active_energy
         self.energy_tail += tail_energy
+
+
+#        if appname != "none":
+#            if suffix  == "" or suffix ==  "_by_data_limited" and not is_wifi:
+#                sort_apps[appname] += (size_up + size_down)
+#            elif suffix == "_by_energy" or suffix == "_by_energy_limited":
+#                sort_apps[appname] += (active_energy + tail_energy)
+#            else:
+#                if size_up + size_down > 0 and not is_wifi:
+#                    sort_apps[appname].append((active_energy + tail_energy)/ (size_up + size_down))
 
     def add_session(self, total_length, active_length, energy_tail, energy_active, data):
         self.avg_length_session.append(total_length)
@@ -167,7 +211,18 @@ class AppStatistics:
         if len(self.avg_energy_ratio_cellular) > 0:
             avg_ratio_cellular = numpy.mean(self.avg_energy_ratio_cellular) 
 
-        print >>f, name, self.encrypted, self.cleartext, self.upload, self.download, self.energy_active, self.energy_tail, self.byte_wifi, self.byte_cellular, self.energy_wifi, self.energy_cellular, avg_length_session, avg_active_length_session, avg_energy_tail_session, avg_energy_active_session, avg_data_session, avg_ratio_wifi, avg_ratio_cellular 
+        print >>f, name, self.encrypted, self.cleartext, self.upload, \
+                self.download, self.energy_active, self.energy_tail, \
+                self.byte_wifi, self.byte_cellular, self.energy_wifi, \
+                self.energy_cellular, avg_length_session, \
+                avg_active_length_session, avg_energy_tail_session, \
+                avg_energy_active_session, avg_data_session, avg_ratio_wifi,\
+                avg_ratio_cellular, \
+                self.byte_by_fg[400], self.energy_by_fg[400],\
+                self.byte_by_fg[100], self.energy_by_fg[100],\
+                self.byte_by_fg[130], self.energy_by_fg[130],\
+                self.byte_by_fg[300], self.energy_by_fg[300],\
+                self.byte_by_fg[200], self.energy_by_fg[200]
 
 class UserStatistics:
     def __init__(self):
@@ -215,8 +270,8 @@ class UserStatistics:
         else:
             self.byte_cellular += (size_up + size_down)
             self.energy_cellular += (active_energy + tail_energy)
-
-        self.app_data_tracker[appname] += (size_up + size_down)
+        if appname != "none":
+            self.app_data_tracker[appname] += (size_up + size_down)
 
     def add_wifi_data(self, network_type, time):
         if time < 0:
@@ -232,8 +287,8 @@ class UserStatistics:
 
     def get_top_apps(self, d, num_apps):
         ordered_apps = sorted(self.app_data_tracker.items(), key=operator.itemgetter(1), reverse=True)
-
         for i in range(min(len(ordered_apps), num_apps)):
+                
                 d[ordered_apps[i][0]] += 1
         return d
 
@@ -256,29 +311,35 @@ for user, user_flow in wifi_data.iteritems():
 
 flows = c_session.CFlow()
 
+#flows.load_data(min_time = 1377129600, max_time=1380758400)
 flows.load_data()
 #flows.load_data(limit=500000)
 
-test_hosts = []
-f = open(host_rank_file)
-limit = 25 
-for line in f:
-    line = line.split()[0]
-    if line in appname_mapping:
-        line = appname_mapping[line]
+if suffix == "_by_energy_ratio":
+    sort_apps = defaultdict(list)
+else:
+    sort_apps = defaultdict(int)
 
-    test_hosts.append(line)
-    limit -= 1
-    if limit == 0:
-        break
-f.close()
+#test_hosts = []
+#f = open(host_rank_file)
+#limit = 25 
+#for line in f:
+#    line = line.split()[0]
+#    if line in appname_mapping:
+#        line = appname_mapping[line]
+#
+#    test_hosts.append(line)
+#    limit -= 1
+#    if limit == 0:
+#        break
+#f.close()
 
 # Get data per flow
 for item in flows.data:
     userid = item["userID"]
     is_encrypted = (len(item["host"]) == 0)
 
-    app = item["app_name"]
+    app = item["app_name"].split(":")[0]
 
     if app in blacklist:
         continue
@@ -286,6 +347,11 @@ for item in flows.data:
     size_up = item["total_dl_whole"]
     size_down = item["total_ul_whole"]
     time = item["start_time"]
+#    if time < 1377129600:
+#        continue
+#    if time > 1380758400:
+#        continue
+
 #    print item["network_type"]
     is_wifi = (item["network_type"] == 0)
     user= item["userID"]
@@ -293,16 +359,23 @@ for item in flows.data:
     energy_active = item["active_energy"]
     energy_tail = item["passive_energy"]
 
+    fg_log = item["fg_log"]
+    fg_code = -1
+    if len(fg_log) > 0:
+        fg_log.sort(key=operator.itemgetter(1))
+        fg_code = fg_log[0][0]
+
     if app in appname_mapping:
         app = appname_mapping[app]
 
-    if app in test_hosts:
-        if is_wifi:
-            app_statistics_wifi[app].add_request(size_up, size_down, \
-                    energy_active, energy_tail, is_encrypted, is_wifi)
-        else:
-            app_statistics[app].add_request(size_up, size_down, \
-                    energy_active, energy_tail, is_encrypted, is_wifi)
+#    if app in test_hosts:
+    if is_wifi:
+        app_statistics_wifi[app].add_request(size_up, size_down, \
+                energy_active, energy_tail, is_encrypted, is_wifi, fg_code, app, sort_apps)
+#        print "here"
+    else:
+        app_statistics[app].add_request(size_up, size_down, \
+                energy_active, energy_tail, is_encrypted, is_wifi, fg_code, app, sort_apps)
 
     user_statistics[user].add_request(size_up, size_down, \
             energy_active, energy_tail, is_encrypted, is_wifi, app)
@@ -338,23 +411,71 @@ for line in f.readlines():
     for app in active_app_list:
         if app in appname_mapping:
             app = appname_mapping[app]
-        if app in test_hosts:
-            if had_wifi:
-                app_statistics_wifi[app].add_session(total_length, active_length, energy_tail, energy_active, data)
-            else:
-                app_statistics[app].add_session(total_length, active_length, energy_tail, energy_active, data)
+#        if app in test_hosts:
+        if had_wifi:
+            app_statistics_wifi[app].add_session(total_length, active_length, energy_tail, energy_active, data)
+        else:
+            app_statistics[app].add_session(total_length, active_length, energy_tail, energy_active, data)
   
 f.close()
 
-f = open("output_files/app_summary" + suffix + ".txt", "w")
-for host in test_hosts:
+if suffix == "_by_energy_ratio":
+    for k in sort_apps.keys():
+        sort_apps[k] = numpy.mean(sort_apps[k])
+
+
+if suffix == ""or suffix ==  "_by_data_limited":
+
+    for host, data in app_statistics.iteritems():
+        sort_apps[host] = data.upload + data.upload
+
+if suffix == "_by_energy" or suffix ==  "_by_energy_limited":
+
+    for host, data in app_statistics.iteritems():
+        sort_apps[host] = data.energy_tail + data.energy_active
+
+test_hosts = sorted(sort_apps.items(), key = operator.itemgetter(1), reverse=True)
+
+#            if suffix  == "" or suffix ==  "_by_data_limited" and not is_wifi:
+#                sort_apps[appname] += (size_up + size_down)
+#            elif suffix == "_by_energy" or suffix == "_by_energy_limited":
+#                sort_apps[appname] += (active_energy + tail_energy)
+#            else:
+#                if size_up + size_down > 0 and not is_wifi:
+#                    sort_apps[appname].append((active_energy + tail_energy)/ (size_up + size_down))
+
+f = open("output_files/app_summary_ratio.txt", "w")
+ratio_hosts = ["com.android.browser", "com.android.chrome", "com.espn.score_center", "com.facebook.katana", "com.instagram.android", "com.google.android.apps.plus", "com.twitter.android", "com.weather.Weather", "com.sina.weibo.servant", "com.google.android.apps.maps", "au.com.shiftyjelly.pocketcasts", "com.bambuna.podcastaddict", "com.spotify.mobile.android.service", "com.google.android.gm", "com.sec.spp.push", "com.skype.raider"]
+
+for host in ratio_hosts:
     if host in appname_mapping:
         host = appname_mapping[host]
     app_statistics[host].print_stats(f, host)
 f.close()
 
+limit = 25
+f = open("output_files/app_summary" + suffix + ".txt", "w")
+#for host in appname_mapping.values():
+for host in test_hosts:
+
+    host = host[0]
+    if limit == 0:
+        break
+    limit -= 1
+
+    if host in appname_mapping:
+        host = appname_mapping[host]
+    app_statistics[host].print_stats(f, host)
+f.close()
+
+limit = 25
 f = open("output_files/app_summary_wifi"+ suffix +".txt", "w")
 for host in test_hosts:
+    host = host[0]
+    if limit == 0:
+        break
+    limit -= 1
+
     if host in appname_mapping:
         host = appname_mapping[host]
     app_statistics_wifi[host].print_stats(f, host)

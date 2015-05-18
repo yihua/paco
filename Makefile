@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-Wno-deprecated -I include/
+CFLAGS=-Wno-deprecated -g -I include/
 LDFLAGS=-static -lpcap
 LIBS=$(shell pwd)/lib
 OBJECTS=$(SOURCES:.cpp=.o)
@@ -17,6 +17,9 @@ SOURCES=\
 		param/config_param.cpp\
 		abstract/tcp_flow.cpp\
 		abstract/flow_abstract.cpp\
+		abstract/packet_flow.cpp\
+		abstract/packet.cpp\
+		model/energy.cpp\
 		framework/traffic_abstract.cpp\
 		task/rtt_task.cpp\
 		proto/http.cpp

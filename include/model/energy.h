@@ -1,7 +1,7 @@
 /*
  * energy.h
  *
- *  Created on: Dec 8, 2013
+ *  Created on: Apr 8, 2015
  *      Author: yihua
  */
 
@@ -73,5 +73,7 @@
 #define TIME_3G_IDLE_DRX 0.0554
 
 #define CONT_THRESHOLD 0.1
+
+double getTailTime(int networkType);
 
 #endif /* ENERGY_H_ */
