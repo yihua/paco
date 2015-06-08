@@ -1438,6 +1438,26 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                                 	//cout << ts << "\t" << appName << "\t" << host+uri << "\t" << method << endl;
                             	} */
 
+                                start_pos = payload_str.find("Last-Modified: ");
+                                end_pos = payload_str.find("\r\n", start_pos);
+                                if (start_pos != string::npos && end_pos > start_pos + 15) {
+                                	if (flow->first_modified.size() == 0) {
+                                		flow->first_modified = trim_string(payload_str.substr(start_pos + 15, end_pos - start_pos - 15));
+                                    	flow->modified += flow->first_modified;
+                                    	flow->modified += "|";
+                                	} else {
+                                		if (trim_string(payload_str.substr(start_pos + 15, end_pos - start_pos - 15)).compare(flow->first_modified) == 0) {
+                                			flow->modified += "*|";
+                                		} else {
+                                			flow->first_modified = trim_string(payload_str.substr(start_pos + 15, end_pos - start_pos - 15));
+                                    		flow->modified += flow->first_modified;
+                                    		flow->modified += "|";
+                                		}
+                                	}
+
+
+                                }
+
                                 start_pos = payload_str.find("User-Agent: ");
                                 end_pos = payload_str.find("\r\n", start_pos);
                                 if (start_pos != string::npos && end_pos > start_pos + 12) {

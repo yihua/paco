@@ -99,9 +99,10 @@ public:
     double last_response_ts;
     //HTTP analysis
     u_short http_request_count;
-    string first_content_type, first_user_agent, first_host; 
+    string first_content_type, first_user_agent, first_host, first_modified; 
     string content_type;
     string user_agent;
+    string modified;
     string host;
     string content_length;
     u_int total_content_length;
