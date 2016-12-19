@@ -13,6 +13,7 @@
 #include "common/stl.h"
 #include "proto/tcp_ip.h"
 #include "proto/http.h"
+ #include "framework/result.h"
 
 class TCPFlow {
 public:
@@ -30,6 +31,7 @@ public:
     u_int window_initial_size;
     u_int window_size;
     double unaffected_time;
+    int flag_order;
 
     double target;
     double bwstep;
@@ -49,6 +51,13 @@ public:
 
     int networkType;
 
+    double minrtt_down, minrtt_up;
+    double avgrtt_down, avgrtt_up;
+    int down_count, up_count;
+
+    double all_avgrtt_down, all_avgrtt_up;
+    int all_down_count, all_up_count;
+
     double dl_time, ul_time;
 
     double end_time;
@@ -58,15 +67,37 @@ public:
 
     double last_tcp_ts;
 
-    short si; //circular seq index 0 - 19, point to the current last element
-    short sx; // point to the current first index
-    u_int seq_down[SEQ_INDEX_MAX]; //circular arrary, seq_down[si] is the last packet
-    double seq_ts[SEQ_INDEX_MAX]; //corresponding time
+    // Download RTT analysis
+    int down_rtt_size;
+    int si_down; //circular seq index 0 - 19, point to the current last element
+    int sx_down; // point to the current first index
+    u_int * seq_down;
+    u_int * seq_ack_down;
+    double * seq_down_ts;
+    //u_int seq_down[SEQ_INDEX_MAX]; //circular arrary, seq_down[si] is the last packet
+    //u_int seq_ack_down[SEQ_INDEX_MAX];
+    //double seq_down_ts[SEQ_INDEX_MAX]; //corresponding time
 
-    short ai; //circular ack index 0 - 9
-    short ax; // point to the current first index
-    u_int ack_down[ACK_INDEX_MAX]; //circular arrary
-    double ack_ts[ACK_INDEX_MAX]; //corresponding time
+    //short ai_down; //circular ack index 0 - 9
+    //short ax_down; // point to the current first index
+    //u_int ack_down[ACK_INDEX_MAX]; //circular arrary
+    //double ack_down_ts[ACK_INDEX_MAX]; //corresponding time
+
+    // Upload RTT analysis
+    int up_rtt_size;
+    int si_up; //circular seq index 0 - 19, point to the current last element
+    int sx_up; // point to the current first index
+    u_int * seq_up;
+    u_int * seq_ack_up;
+    double * seq_up_ts;
+    //u_int seq_up[SEQ_INDEX_MAX]; //circular arrary, seq_down[si] is the last packet
+    //u_int seq_ack_up[SEQ_INDEX_MAX];
+    //double seq_up_ts[SEQ_INDEX_MAX]; //corresponding time
+
+    //short ai_up; //circular ack index 0 - 9
+    //short ax_up; // point to the current first index
+    //u_int ack_up[ACK_INDEX_MAX]; //circular arrary
+    //double ack_up_ts[ACK_INDEX_MAX]; //corresponding time
 
     bool has_ts_option_clt;
     bool has_ts_option_svr;
@@ -147,6 +178,23 @@ public:
 
 	char * ConvertIPToString(unsigned int ip);
 	void setUserID(string s);
+
+    void update_seq_new(u_int seq, u_int ack, u_int * & seq_array, u_int * & ack_array,
+        double * & seq_ts, int & seq_size, int & si, int & sx, u_short payload_len, double ts);
+    double update_ack_new(u_int seq, u_int ack, u_int * seq_array, u_int * ack_array,
+        double * seq_ts, int & seq_size, int & si, int & sx, u_short payload_len, double _actual_ts,
+        Result* result, int flag);
+    int get_si_next_new(int c, int size);
+    int find_seq_by_ack_new(u_int seq, u_int ack, int & start, int & end,
+        u_int * seq_array, u_int * ack_array, int & seq_size);
+
+    void update_seq_download(u_int seq, u_int ack, u_short payload_len, double ts);
+    void update_seq_upload(u_int seq, u_int ack, u_short payload_len, double ts);
+    double update_ack_download(u_int seq, u_int ack, u_short payload_len,
+        double ts, Result* result);
+    double update_ack_upload(u_int seq, u_int ack, u_short payload_len,
+        double ts, Result* result);
+    void deleteArray();
 };
 
 #endif /* _PACO_TCP_FLOW_H */

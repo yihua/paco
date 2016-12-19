@@ -75,7 +75,7 @@ public:
      * Parse the app name files and add them to the context
      * Then process all pcap traces
      */
-	void run();
+	void run(char* filterID);
 
     /*
      * called by run() on each packet, this gathers data from the packets.

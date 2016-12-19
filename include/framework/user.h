@@ -29,6 +29,7 @@ struct string_less {
 
 class User {
 public:
+    string currFolder, lastFolder;
 	string userID;
     double start_time;
     double last_packet_time;
@@ -42,6 +43,7 @@ public:
     double cc_start;
     double last_cc_sample_time;
     int last_payload;
+    int conn_d_data_size, conn_u_data_size;
 
     double lastCycleStartTime;
     double cycleTransferTime[2], cycleTailTime[2], cycleTransferEnergy[2], cycleTailEnergy[2], cycleTCPTransferEnergy[2], cycleTCPTailEnergy[2];
@@ -79,6 +81,7 @@ public:
     int http_req_stat_size;
 
     User();
+    string getFolder();
     bool isInCycle(double currentTime);
     void resetCycleStat(double currentTime);
     void resetRateStat(int dir);

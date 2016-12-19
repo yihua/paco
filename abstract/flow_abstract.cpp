@@ -142,12 +142,20 @@ void FlowAbstract::writeTCPFlowStat(Result* result, TCPFlow* tcpflow) {
 	int size = tcpflow->fgLog.length() + tcpflow->http_ts_log.length() + tcpflow->energy_log.size() +
                 tcpflow->content_type.size() + tcpflow->user_agent.size() +
 				tcpflow->host.size() + tcpflow->content_length.size() + 
-                tcpflow->full_url.size() + 1000;
+                tcpflow->full_url.size() + 1100;
 	char buf[size];
+	double tmp_down = -1, tmp_up = -1;
+	if (tcpflow->all_down_count > 0) {
+		tmp_down = tcpflow->all_avgrtt_down / (double) tcpflow->all_down_count;
+	}
+	if (tcpflow->all_up_count > 0) {
+		tmp_up = tcpflow->all_avgrtt_up / (double) tcpflow->all_up_count;
+	}
+	// 18: total_ul_payload
 	sprintf(buf, "%s %ld %s %d.%d.%d.%d:%d %d.%d.%d.%d:%d %d %lld %lld %s %.6lf %.6lf \
 %.6lf %.6lf %s %.6lf %.6lf %.6lf %.6lf \
 %lld %lld %lld %lld %.6lf %.6lf %.6lf %lld %lld \
-%lld %lld %lld %lld \
+%lld %lld %lld %lld %.6lf %.6lf %.6lf %d %.6lf %d %d \
 %d %s %s %s %s %s %s %d %s\n",
 		userp->userID.c_str(), userp->tcp_flows.size(),
 		tcpflow->flowIndex.c_str(), 
@@ -167,6 +175,9 @@ void FlowAbstract::writeTCPFlowStat(Result* result, TCPFlow* tcpflow) {
     	tcpflow->total_ul_payload_h, tcpflow->total_dl_payload_h,
     	tcpflow->ul_rate_payload, tcpflow->dl_rate_payload,
     	tcpflow->ul_rate_payload_h, tcpflow->dl_rate_payload_h,
+        tcpflow->minrtt_down, tcpflow->minrtt_up,
+        tmp_down, tcpflow->all_down_count, tmp_up, tcpflow->all_up_count,
+        tcpflow->flag_order,
     	tcpflow->http_request_count, tcpflow->http_ts_log.c_str(), tcpflow->energy_log.c_str(), 
     	tcpflow->content_type.c_str(), tcpflow->user_agent.c_str(),
     	tcpflow->host.c_str(), tcpflow->content_length.c_str(), 
@@ -372,14 +383,27 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
     traceCtx.updateAppStatus(traceCtx.getUserID(), ts);
 
 
-    //cout << traceCtx.getFolder() << endl;
-	if (ts - last_ts < 0) {
-		cout << "------------- Packets orders not correct!!! -----------" << endl;
-		cout << traceCtx.getFolder() << endl 
-		     << traceCtx.getPacketNo() << endl << "---------------------------------------" << endl;
+    /*
+	* differentiate different users
+	*/
+	if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)) {
+		userp = &(users[traceCtx.getUserID()]);
+		userp->userID.assign(traceCtx.getUserID());
 	}
+	userp->currFolder.assign(traceCtx.currFolder);
+    //cout << traceCtx.getFolder() << endl;
+    flag_order = 0;
+	if (ts - userp->last_packet_time < 0) {
+		cout << "------------- Packets orders not correct!!! -----------" << endl;
+		cout << userp->getFolder() << endl 
+		     << traceCtx.getPacketNo() << endl << "---------------------------------------" << endl;
+        flag_order = 1;
+	}
+
+	userp->lastFolder.assign(traceCtx.currFolder);
 	last_ts = ts;
 	traceCtx.incrPacketNo();
+
 	/*
 	 * update device context information
 	 */
@@ -507,8 +531,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		 * differentiate different users
 		 */
 		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)) {
-			userp = &(users[traceCtx.getUserID()]);
-			userp->userID.assign(traceCtx.getUserID());
+			//userp = &(users[traceCtx.getUserID()]);
+			//userp->userID.assign(traceCtx.getUserID());
 		} else {
 			userp = &(users[intToString((unsigned int)ip_clt)]);
 			userp->userID.assign(intToString((unsigned int)ip_clt));
@@ -719,6 +743,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		if (userp->is_sample && ts - userp->cc_start > 1.0) {
 			int conn_d_data = 0, conn_d_ack = 0, conn_u_data = 0, conn_u_ack = 0, overlap = 0;
 			bool flag = false;
+            int tmp_order = 0, tmp_down = 0, tmp_up = 0;
+            double tmp_down_delay = 0.0, tmp_up_delay = 0.0, delta = 0.0;
 			//cout << "flows: " << userp->tcp_flows.size() << endl;
 			for (flow_it = userp->tcp_flows.begin(); flow_it != userp->tcp_flows.end();) {
 				flag = false;
@@ -726,6 +752,16 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					flow_it->second->last_ul_pl_time < userp->cc_start + 1.0) {
 					conn_u_data++;
 					flag = true;
+					// downlink ACK: upload ACK
+                    if (flow_it->second->up_count > 0) {
+                        delta = flow_it->second->avgrtt_up - flow_it->second->minrtt_up * (double) flow_it->second->up_count;
+                        if (delta >= 0) {
+                            tmp_up_delay += delta;
+                            tmp_up += flow_it->second->up_count;
+                        } else {
+                            printf("Delay calculation error!");
+                        }
+                    }
 				} else if (flow_it->second->last_dl_ack_time >= userp->cc_start &&
 					flow_it->second->last_dl_ack_time < userp->cc_start + 1.0) {
 					conn_d_ack++;
@@ -737,12 +773,28 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					conn_d_data++;
 					if (flag)
 						overlap++;
+					// uplink ACK: download ACK
+                    if (flow_it->second->down_count > 0) {
+                        delta = flow_it->second->avgrtt_down - flow_it->second->minrtt_down * (double) flow_it->second->down_count;
+                        if (delta >= 0) {
+                            tmp_down_delay += delta;
+                            tmp_down += flow_it->second->down_count;
+                        } else {
+                            printf("Delay calculation error!");
+                        }
+                    }
 				} else if (flow_it->second->last_ul_ack_time >= userp->cc_start &&
 					flow_it->second->last_ul_ack_time < userp->cc_start + 1.0) {
 					conn_u_ack++;
 					if (flag)
 						overlap++;
 				}
+
+				flow_it->second->up_count = 0;
+				flow_it->second->down_count = 0;
+				flow_it->second->avgrtt_down = 0.0;
+				flow_it->second->avgrtt_up = 0.0;
+
                 //printCheckPoint(traceCtx, "point 2.0");
 				if (userp->cc_start - flow_it->second->last_tcp_ts > FLOW_MAX_IDLE_TIME) {
 					//cout << packet_count << " write" << endl;
@@ -764,6 +816,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					//cout << "MAX_IDLE erase ";
                     //printAddr(flow_it->second);
                     //printCheckPoint(traceCtx, "point 2.2.5");
+					flow_it->second->deleteArray();
 					userp->tcp_flows.erase(flow_it++);
                     //printCheckPoint(traceCtx, "point 2.3");
 					//cout << "write finish" << endl;
@@ -789,11 +842,23 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 				}
 			}
 			if (conn_d_data + conn_d_ack + conn_u_data + conn_u_ack > 0) {
-				char buf[100];
-				sprintf(buf, "%s %.6lf %d %d %d %d %d\n", userp->userID.c_str(), userp->cc_start,
-						conn_d_data, conn_d_ack, conn_u_data, conn_u_ack, overlap);
+				char buf[200];
+				double up = -1.0, down = -1.0;
+				if (tmp_down > 0) {
+					down = tmp_down_delay / (double) tmp_down;
+				}
+				if (tmp_up > 0) {
+					up = tmp_up_delay / (double) tmp_up;
+				}
+				sprintf(buf, "%s %.6lf %d %d %d %d %d %d %d %.6lf %.6lf\n", userp->userID.c_str(), userp->cc_start,
+						conn_d_data, conn_d_ack, conn_u_data, conn_u_ack, overlap,
+                        userp->conn_d_data_size, userp->conn_u_data_size,
+                        down, up);
 				result->addResultToFile(1, buf);
 			}
+            userp->conn_d_data_size = 0;
+            userp->conn_u_data_size = 0;
+
 			while (ts - userp->cc_start > 1.0)
 				userp->cc_start += 1.0;
 			if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_SPGW))
@@ -821,6 +886,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 				if (b1 && !b2 && payload_len > 0) { // uplink
 					userp->session_ul_tcp_all += tcp_whole_len;
 					userp->session_ul_tcp_payload += payload_len;
+                    userp->conn_u_data_size += payload_len;
 
 					if (userp->bw_bin_ul_start_time < 0) {
 						userp->bw_bin_ul_start_time = ts;
@@ -840,6 +906,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 			    } else if (!b1 && b2 && payload_len > 0) { //downlink
 			    	userp->session_dl_tcp_all += tcp_whole_len;
 					userp->session_dl_tcp_payload += payload_len;
+                    userp->conn_d_data_size += payload_len;
 
 					if (userp->bw_bin_dl_start_time < 0) {
 						userp->bw_bin_dl_start_time = ts;
@@ -948,6 +1015,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                             writeTCPFlowStat(result, flow_it_tmp->second);
                             //cout << "SAME SYN erase ";
                             //printAddr(flow_it_tmp->second);
+			    flow_it_tmp->second->deleteArray();
                             userp->tcp_flows.erase(flow_it_tmp);
                             flow_valid = true;
                             userp->tcp_flows[flow_index] = new TCPFlow();
@@ -987,6 +1055,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						flow->clt_ip = ip_clt; //init a flow
 						flow_count++;
 
+						flow->userID.assign(traceCtx.getUserID());
 						//userp->tcp_flows[flow_index] = flow;
 						flow->flowIndex = flow_index;
 						flow->idle_time_before_syn = ts - userp->last_packet_time;
@@ -1095,7 +1164,7 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                     //
 
                     int currStatus = traceCtx.getAppStatus(userp->userID, appName);
-
+                    
                     if (flow->lastStatusTime < 0) {
                         flow->lastStatusTime = ts;
                         flow->lastStatus = currStatus;
@@ -1172,7 +1241,9 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 						//cout << "flow name: " << flow->appName << "|" << appName << endl;
 					}
 					flow->last_tcp_ts = ts;
-
+                    if (flag_order > 0) {
+                        flow->flag_order = 1;
+                    }
 					//if a terminate flow packet is here, terminate flow and output flow statistics
 					if ((tcp_hdr->fin) != 0 || (tcp_hdr->rst) != 0) {
 						//flow->print((tcp_hdr->fin) | (tcp_hdr->rst));
@@ -1283,17 +1354,45 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 					/*
 					 * RTT and TCP pattern analysis
 					 */
-					/*
+					
+					double rtt_sample = 0.0;
 					if (b1 && !b2) { // uplink
-                        flow->update_seq_x(tcp_hdr->seq, payload_len, ts);
-					} else if (!b1 && b2) {
-                        flow->window_size = flow->window_scale * tcp_hdr->window;
+                        //flow->update_seq_x(tcp_hdr->seq, payload_len, ts);
+
+						rtt_sample = flow->update_ack_download(tcp_hdr->seq, tcp_hdr->ack_seq, payload_len, ts, result);
+                        if (rtt_sample > 0) {
+                        	//printf("add download rtt_sample %f\n", rtt_sample);
+                            if (rtt_sample < flow->minrtt_down) {
+                                flow->minrtt_down = rtt_sample;
+                            }
+                            flow->avgrtt_down += rtt_sample;
+                            flow->down_count += 1;
+                            flow->all_avgrtt_down += rtt_sample;
+                            flow->all_down_count += 1;
+                        }
+
+						flow->update_seq_upload(tcp_hdr->seq, tcp_hdr->ack_seq, payload_len, ts);
+					} else if (!b1 && b2) { // downlink
+                        //flow->window_size = flow->window_scale * tcp_hdr->window;
                         //cout << setprecision(16) << ts;
                         //cout << " " << flow->ConvertIPToString(ip_hdr->ip_src.s_addr);
                         //cout << " " << flow->ConvertIPToString(ip_hdr->ip_dst.s_addr);
                         //cout << " " << tcp_hdr->seq << " " << tcp_hdr->ack_seq << endl;
-						flow->update_ack_x(tcp_hdr->ack_seq, payload_len, ts);
-					}*/
+						//flow->update_ack_x(tcp_hdr->ack_seq, payload_len, ts);
+
+						flow->update_seq_download(tcp_hdr->seq, tcp_hdr->ack_seq, payload_len, ts);
+						rtt_sample = flow->update_ack_upload(tcp_hdr->seq, tcp_hdr->ack_seq, payload_len, ts, result);
+                        if (rtt_sample > 0) {
+                        	//printf("add upload rtt_sample %f\n", rtt_sample);
+                            if (rtt_sample < flow->minrtt_up) {
+                                flow->minrtt_up = rtt_sample;
+                            }
+                            flow->avgrtt_up += rtt_sample;
+                            flow->up_count += 1;
+                            flow->all_avgrtt_up += rtt_sample;
+                            flow->all_up_count += 1;
+                        }
+					}
 
 					if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)) {
 						userp->appTime[appName] = ts;
@@ -1627,6 +1726,7 @@ void FlowAbstract::runCleanUp(Result* result) {
 		//map<string, string>::iterator log_it;
 		for (flow_it = tmp_user->tcp_flows.begin(); flow_it != tmp_user->tcp_flows.end();) {
 			writeTCPFlowStat(result, flow_it->second);
+                        flow_it->second->deleteArray();
 			tmp_user->tcp_flows.erase(flow_it++);
 		}
 

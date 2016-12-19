@@ -89,18 +89,38 @@ string PacketAnalyzer::getUserID(string s) {
 	return s.substr(pos2 + 1, pos1-pos2-1);
 }
 
-void PacketAnalyzer::run() {
+long GetSecond() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec;
+}
+
+void PacketAnalyzer::run(char* idFilter) {
 	// read packet
 	char errbuf[PCAP_ERRBUF_SIZE];
 	vector<string>::iterator it;
 	pcap_t *trace_file;
+    long startTime = GetSecond();
+    long checkTime = 0;
 
 	string curr_folder, tmp_folder, tmp_s;
 	int trace_count = 0;
 	int c_cycle = mConfigParam.getCountCycle();
+	int thisID = 0;
 	for (it = mTraceList.begin(); it != mTraceList.end(); it++) {
 		if (trace_count % c_cycle == 0) {
-			cout << trace_count << " files processed." << endl;
+            checkTime = GetSecond() - startTime;
+			cout << trace_count << " files processed. Time: "
+                << checkTime/60/60 << "h";
+            checkTime %= (60 * 60);
+            cout << checkTime/60<< "m";
+            checkTime %= 60; 
+            cout << checkTime << "s" << endl;
+		}
+
+		if (getUserID(*it).compare(idFilter) != 0) {
+			trace_count++;
+			continue;
 		}
 
 		// open pcap file successfully?
@@ -131,6 +151,10 @@ void PacketAnalyzer::run() {
 
 			// get user ID
 			mTraceCtx.setUserID(getUserID(*it));
+			if (mTraceCtx.getUserID().compare(idFilter) == 0) {
+				thisID = 1;
+				//cout << *it << endl;
+			}
 		}
 
 
@@ -158,7 +182,9 @@ void PacketAnalyzer::run() {
 		//cout << "Pcap trace Ethernet header length: " << mTraceCtx.getEtherLen() << endl;
 
 		/* read and dispatch packets until EOF is reached */
-		pcap_loop(trace_file, 0, dispatcher_handler, (u_char *) this);
+		if (mTraceCtx.getNetworkType() == Context::NETWORK_TYPE_CELLULAR && thisID == 1) {
+			pcap_loop(trace_file, 0, dispatcher_handler, (u_char *) this);
+		}
 		pcap_close(trace_file);
 		trace_count++;
 	}

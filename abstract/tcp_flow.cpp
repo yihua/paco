@@ -7,6 +7,8 @@
 
 #include "abstract/tcp_flow.h"
 
+#define START_SEQ_WINDOW 40
+
 TCPFlow::TCPFlow() {
     svr_ip = 0;
     clt_ip = 0;
@@ -15,6 +17,7 @@ TCPFlow::TCPFlow() {
     start_time = 0;
     end_time = 0;
     idle_time = 0;
+    flag_order = 0;
 
     target = start_time + GVAL_TIME;
     bwstep = 0.25;
@@ -107,13 +110,55 @@ TCPFlow::TCPFlow() {
     dl_rate_payload_h = 0;
     ul_rate_payload_h = 0;
     flow_finish = false;
-    reset_seq(); //contains reset_ack
+    //reset_seq_new(); //contains reset_ack
+    si_down = -1;
+    sx_down = -1;
+    si_up = -1;
+    sx_up = -1;
+    down_rtt_size = START_SEQ_WINDOW;
+    up_rtt_size = START_SEQ_WINDOW;
+
+    seq_down = new u_int[down_rtt_size];
+    seq_ack_down = new u_int[down_rtt_size];
+    seq_down_ts = new double[down_rtt_size];
+
+    seq_up = new u_int[up_rtt_size];
+    seq_ack_up = new u_int[up_rtt_size];
+    seq_up_ts = new double[up_rtt_size];
+    //memset(seq_down, 0, sizeof seq_down);
+    //memset(seq_ack_down, 0, sizeof seq_ack_down);
+    //memset(seq_down_ts, 0, sizeof seq_down_ts);
+    //memset(seq_up, 0, sizeof seq_up);
+    //memset(seq_ack_up, 0, sizeof seq_ack_up);
+    //memset(seq_up_ts, 0, sizeof seq_up_ts);
+
+    minrtt_down = 1000000.0;
+    minrtt_up = 1000000.0;
+    avgrtt_down = 0.0;
+    avgrtt_up = 0.0;
+    down_count = 0;
+    up_count = 0;
+
+    all_avgrtt_down = 0.0;
+    all_avgrtt_up = 0.0;
+    all_down_count = 0;
+    all_up_count = 0;
+}
+
+void TCPFlow::deleteArray() {
+    delete[] seq_down;
+    delete[] seq_ack_down;
+    delete[] seq_down_ts;
+    delete[] seq_up;
+    delete[] seq_ack_up;
+    delete[] seq_up_ts;
 }
 
 //TCPFlow::~TCPFlow() {
 //	delete userID;
 //}
 
+/*
 //called during init or any abnormal happens
 void TCPFlow::reset_seq() {
     si = -1;
@@ -133,6 +178,7 @@ void TCPFlow::reset_ack() {
     memset(ack_down, 0, sizeof ack_down);
     memset(ack_ts, 0, sizeof ack_ts);
 }
+
 
 //before this function is called, need to make sure that payload_len >= 1358 (should be == 1358 actually)
 void TCPFlow::update_seq(u_int seq, u_short payload_len, double ts) {
@@ -211,256 +257,194 @@ void TCPFlow::update_ack(u_int ack, u_short payload_len, double ts, double _actu
         m = get_ai_next(m);
     }
 }
-
+*/
+// ******************************************************************************************
 //functions for RTT analysis
-void TCPFlow::update_seq_x(u_int seq, u_short payload_len, double ts) {
-    if (si != -1 && seq_down[si] > 0 && seq_down[si] > seq) {
-        outorder_seq_count++;
+//Download analysis
+
+void TCPFlow::update_seq_download(u_int seq, u_int ack, u_short payload_len, double ts) {
+    update_seq_new(seq, ack, seq_down, seq_ack_down, seq_down_ts, down_rtt_size, si_down, sx_down, payload_len, ts);
+}
+
+void TCPFlow::update_seq_upload(u_int seq, u_int ack, u_short payload_len, double ts) {
+    update_seq_new(seq, ack, seq_up, seq_ack_up, seq_up_ts, up_rtt_size, si_up, sx_up, payload_len, ts);
+}
+
+double TCPFlow::update_ack_download(u_int seq, u_int ack, u_short payload_len,
+    double ts, Result* result) {
+	//return -1;
+    return update_ack_new(seq, ack, seq_down, seq_ack_down, seq_down_ts, down_rtt_size, si_down, sx_down, payload_len, ts, result, 1);
+}
+
+double TCPFlow::update_ack_upload(u_int seq, u_int ack, u_short payload_len,
+    double ts, Result* result) {
+	//return -1;
+    return update_ack_new(seq, ack, seq_up, seq_ack_up, seq_up_ts, up_rtt_size, si_up, sx_up, payload_len, ts, result, 0);
+}
+
+void TCPFlow::update_seq_new(u_int seq, u_int ack, u_int * & seq_array, u_int * & ack_array,
+    double * & seq_ts, int & seq_size, int & si, int & sx, u_short payload_len, double ts) {
+    // only consider data packet
+    if (payload_len == 0) {
         return;
     }
-    si = get_si_next(si);
-    seq_down[si] = seq + payload_len;
-    seq_ts[si] = ts;
+    if (packet_count <= 3) {
+    	return;
+    }
+    if (si != -1 && seq_array[si] > 0 && seq_array[si] > seq) {
+        //outorder_seq_count++;
+        return;
+    }
+    if (ts == 0) {
+        printf("Timestamp Error");
+    }
+    //printf("start\n");
+    si = get_si_next_new(si, seq_size);
     if (sx == -1) {
         sx = si;
     } else if (sx == si) {
-        sx = get_si_next(si);
+        //printf("---- @@@ Seq array not large enough. seq_size=%d\n", seq_size); 
+	
+        u_int * old_seq = seq_array;
+        u_int * old_ack = ack_array;
+        double * old_ts = seq_ts;
+
+		int end = (sx + seq_size - 1) % seq_size;
+        int old_size = seq_size;
+		
+		seq_size *= 2;
+		seq_array = new u_int[seq_size];
+        ack_array = new u_int[seq_size];
+		seq_ts = new double[seq_size];
+		
+		int index = 0, i = sx;
+        
+		while (i != end) {
+            seq_array[index] = old_seq[i];
+            ack_array[index] = old_ack[i];
+            seq_ts[index] = old_ts[i];
+            index += 1;
+            i = get_si_next_new(i, old_size);
+		}
+		seq_array[index] = old_seq[i];
+        ack_array[index] = old_ack[i];
+        seq_ts[index] = old_ts[i];
+        //index += 1;
+		
+		sx = 0;
+        si = index + 1;
+
+		
+		if (index != old_size - 1) {
+			printf("Copy error: index=%d, oldsize=%d\n", index, old_size);
+		}
+        delete[] old_seq;
+        delete[] old_ack;
+        delete[] old_ts;
+		
+        //sx = get_si_next_new(si, seq_size);
+	
     }
-
-    if (payload_len > 0) {
-        //Slow start after dup ack
-        /*if (dup_ack_count_current > 20) {
-            bytes_after_dupack += payload_len;
-            if (first_bw == 0 && ts - last_dupack_time > DUPACK_SLOWSTART_TIME && ts - last_dupack_time <= 2 * DUPACK_SLOWSTART_TIME) {
-                //this is the time to output a throughput sample
-                double bw = bytes_after_dupack * 8 / (ts - last_dupack_time) / 1000.0; //kbps
-                first_bw = bw;
-                bytes_after_dupack = 0;
-
-            } else if (first_bw > 0 && ts - last_dupack_time > 2 * DUPACK_SLOWSTART_TIME) {
-                double bw = bytes_after_dupack * 8 / (ts - last_dupack_time - DUPACK_SLOWSTART_TIME) / 1000.0; //kbps
-                if (first_bw > 0 && bw / first_bw > 1.5) {
-                    slow_start_count++;
-                }
-                printf("SSBW %.4lf %.4lf %d\n", bw / first_bw, bw, dup_ack_count_current);
-                dup_ack_count_current = 0;
-                bytes_after_dupack = 0;
-                first_bw = 0;
-            }
-        }//*/
-
-        //Bytes in flight
-        if (ai == -1) {
-            bytes_in_fly = payload_len;
-        } else {
-            bytes_in_fly = seq_down[si] - ack_down[ai];
-        }
-        if (bytes_in_fly > max_bytes_in_fly) {
-            max_bytes_in_fly = bytes_in_fly;
-        }
-    }
-
-    if (bytes_in_fly == window_size || window_size == 0) {
-        //window full or 0 window
-        if (unaffected_time == 0) {
-            unaffected_time = ts;
-        }
-    }
-
-
-    if (last_time < 0) {
-        last_time = ts;
-    }
-
-    if (payload_len > 0 && ts - last_time > IDLE_THRESHOLD) {
-        idle_time += (ts - last_time);
-        //printf("I %.4lf D\n", ts - last_time);
-    }
-
-    if (packet_count == 2) {
-        syn_rtt = ts - last_time;
-    } else if (packet_count == 3) {
-        syn_ack_rtt = ts - last_time;
-    }
-    last_time = ts;
+    seq_array[si] = seq + payload_len;
+    ack_array[si] = ack;
+    seq_ts[si] = ts;
+    //printf("end\n");
 }
 
-void TCPFlow::update_ack_x(u_int ack, u_short payload_len, double _actual_ts) {
-    if (ai != -1 && ack_down[ai] > 0 && ack_down[ai] == ack && payload_len == 0) {
-        //if payload not 0, this is uplink data packet
-        dup_ack_count++;
-        if (_actual_ts - last_dupack_time > 1.0) {
-            //new session
-            dup_ack_count_current = 1;
-        } else {
-            dup_ack_count_current++;
-        }
-        last_dupack_time = _actual_ts;
-        bytes_after_dupack = 0;
-        return;
+double TCPFlow::update_ack_new(u_int seq, u_int ack, u_int * seq_array, u_int * ack_array,
+    double * seq_ts, int & seq_size, int & si, int & sx, u_short payload_len, double _actual_ts, Result* result, int flag) {
+
+    if (payload_len > 0) {
+        return -1;
     }
 
-    ai = get_ai_next(ai);
-    ack_down[ai] = ack;
-    ack_ts[ai] = _actual_ts;
-    if (ax == -1) {
-        ax = ai;
-    } else if (ax == ai) {
-        ax = get_ai_next(ai);
+    if (packet_count <= 3) {
+    	return -1;
     }
 
     //ACK RTT analysis
-    short s1 = find_seq_by_ack(ack_down[ai], sx, si);
-    if (s1 != -1 && payload_len == 0) {
-        //cout << "AR " << " " << ack_ts[ai] - seq_ts[s1] << " " << bytes_in_fly << endl;
-    }//
-
-    //update bytes in fly after analysis
-    if (bytes_in_fly > 0) {
-        bytes_in_fly = seq_down[si] - ack_down[ai];
+    //printf("start=%d end=%d ", sx, si);
+    int s1 = find_seq_by_ack_new(seq, ack, sx, si, seq_array, ack_array, seq_size);
+    //printf("index=%d seq_ts=%.6lf\n", s1, seq_ts[s1]);
+    if (s1 >= 0) {
+        char buf[1000];
+        sprintf(buf, "%s %d.%d.%d.%d:%d %d.%d.%d.%d:%d %d %.6lf %.6lf %.6lf %s\n",
+            this->userID.c_str(), 
+            (this->clt_ip)>>24, (this->clt_ip)>>16 & 0xFF, (this->clt_ip)>>8 & 0xFF, (this->clt_ip) & 0xFF,
+            this->clt_port,
+            (this->svr_ip)>>24, (this->svr_ip)>>16 & 0xFF, (this->svr_ip)>>8 & 0xFF, (this->svr_ip) & 0xFF,
+            this->svr_port,
+            flag,
+            seq_ts[s1], _actual_ts, _actual_ts - seq_ts[s1],
+            this->appName.c_str());
+        result->addResultToFile(7, buf);
+        return _actual_ts - seq_ts[s1];
     }
-
-    if (last_time < 0) {
-        last_time = _actual_ts;
-    }
-    if (payload_len > 0 && _actual_ts - last_time > IDLE_THRESHOLD) {
-        idle_time += (_actual_ts - last_time);
-        //printf("I %.4lf U\n", _actual_ts - last_time);
-    }
-
-    if (packet_count == 2) {
-        syn_rtt = _actual_ts - last_time;
-    } else if (packet_count == 3) {
-        syn_ack_rtt = _actual_ts - last_time;
-    }
-    last_time = _actual_ts;
+    return -1.0;
 }
 
-//test with start_ai and ai
-bool TCPFlow::bw_estimate(short start_ai) {
-    if (ack_down[start_ai] - ack_down[get_ai_previous(start_ai)] <= 1.1 * TCP_MAX_PAYLOAD) {
-        return false; //this ack is triggered by TCP's delayed ACK
-    }
-
-    if (ack_down[ai] - ack_down[get_ai_previous(ai)] <= 1.1 * TCP_MAX_PAYLOAD) {
-        return false; //this ack is triggered by TCP's delayed ACK
-    }
-
-
-    short s1 = find_seq_by_ack(ack_down[start_ai], sx, si);
-    short s2 = find_seq_by_ack(ack_down[ai], sx, si);
-    if (s1 == -1 || s2 == -1 || s1 == s2)
-        return false;
-
-    if ((seq_ts[s2] - seq_ts[s1] == 0) ||
-        (seq_ts[s2] - seq_ts[s1] > 0)) {
-        double bw = (double)(seq_down[s2] - seq_down[s1]) * 8.0 / (ack_ts[ai] - ack_ts[start_ai]) / ONE_MILLION;
-        double bw_send;
-        if (seq_ts[s2] - seq_ts[s1] == 0) {
-            bw_send = BW_MAX_BITS_PER_SECOND * 2.0 / ONE_MILLION;
-        } else {
-            bw_send = (double)(seq_down[s2] - seq_down[s1]) * 8.0 / (seq_ts[s2] - seq_ts[s1]) / ONE_MILLION;
-        }
-
-        if (bw < 45000000.0 / ONE_MILLION  &&
-            bw_send >= BW_MAX_BITS_PER_SECOND / ONE_MILLION) {
-
-            if (actual_ts - last_time > bwstep) {
-                //cout << bw_send << " " << hex << ack_down[start_ai] << " " << ack_down[ai] << dec << endl;
-                cout << "BWES " << ConvertIPToString(clt_ip) << " " << actual_ts << " " << bw << " " << ack_ts[ai] - ack_ts[start_ai] << endl;
-                total_bw += bw;
-                sample_count++;
-            }
-
-            /*
-             //time sample for each step
-             string big_flow_index = ConvertIPToString(clt_ip) + string("_");
-            big_flow_index += ConvertIPToString(svr_ip) + string("_");
-            big_flow_index += NumberToString(clt_port) + string("_") + NumberToString(svr_port);
-
-            while (actual_ts > target + 0.4 * bwstep) {
-                if (abs(last_time - target) <= 0.4 * bwstep) {
-                    //cout << "BW_ESTIMATE_SAMPLE " << big_flow_index << " " << target << " " << last_throughput << " " << abs(ack_ts[ai] - ack_ts[start_ai]) << " " << (seq_down[s2] - seq_down[s1]) << endl;
-                    total_bw += last_throughput;
-                    sample_count++;
-                } else {
-                    //cout << "BW_ESTIMATE_SAMPLE " << target << " " << 0 << " " << 0 << endl;
-                }
-                target += bwstep;
-            }
-            //actual_ts <= target + 0.2 * bwstep
-            if (last_time <= target && target <= actual_ts) {
-                if (abs(last_time - target) < abs(actual_ts - target)) {
-                    //cout << "BW_ESTIMATE_SAMPLE " << big_flow_index << " " << target << " " << last_throughput << " " << (ack_ts[ai] - ack_ts[start_ai]) << " " << (seq_down[s2] - seq_down[s1]) << endl;
-                    total_bw += last_throughput;
-                    sample_count++;
-                } else {
-                    //cout << "BW_ESTIMATE_SAMPLE " << big_flow_index << " " << target << " " << bw << " " << (ack_ts[ai] - ack_ts[start_ai]) << " " << (seq_down[s2] - seq_down[s1]) << endl;
-                    total_bw += bw;
-                    sample_count++;
-                }
-                target += bwstep;
-            } else if (target < last_time) {
-                if (abs(last_time - target) <= 0.4 * bwstep) {
-                    //cout << "BW_ESTIMATE_SAMPLE " << big_flow_index << " " << target << " " << last_throughput << " " << (ack_ts[ai] - ack_ts[start_ai]) << " " << (seq_down[s2] - seq_down[s1]) << endl;
-                    total_bw += last_throughput;
-                    sample_count++;
-                } else {
-                    //cout << "BW_ESTIMATE_SAMPLE " << target << " " << 0 << " " << 0 << endl;
-                }
-                target += bwstep; //should have already output when scanning last_time
-            } else if (target > actual_ts) {
-
-            //} else {//impossible to reach here
-            }//*/
-
-            /*cout << "BW_ESTIMATE " << ConvertIPToString(svr_ip);
-            cout << " => " << ConvertIPToString(clt_ip);
-            cout.precision(6);
-            cout << " time " << fixed << actual_ts;
-            cout << " BW " << bw << " Mbps";
-            //cout << " start " << hex << ack_down[start_ai] << " end " << ack_down[ai] << dec;
-            cout << " ACK_GAP " << ack_down[ai] - ack_down[start_ai];
-            cout << " ACK_TIME_GAP " << ack_ts[ai] - ack_ts[start_ai];
-            cout << endl;//*/
-
-            last_time = actual_ts;
-            last_throughput = bw;
-            return true;
-        }
-    }
-
-    return false;
+int TCPFlow::get_si_next_new(int c, int size) {
+    return (c + 1) % size;
 }
 
-short TCPFlow::find_seq_by_ack(u_int ack, short start, short end) {
-    int range;
-    if (start <= end) {
-        range = end - start + 1;
+int TCPFlow::find_seq_by_ack_new(u_int seq, u_int ack, int & start, int & end,
+    u_int * seq_array, u_int * ack_array, int & seq_size) {
+    if (start == -1 && end == -1) {
+        return -1;
     } else {
-        range = end + SEQ_INDEX_MAX - start + 1;
+        if (start == -1 || end == -1) {
+            printf("------ ### RTT array error!");
+        }
     }
-
-    if (range <= 8) {
-        for (int i = start ; i <= end ; i++) {
-            if (seq_down[i] == ack)
+    int i = start, last = get_si_next_new(end, seq_size);
+    int guard = 0, test = 0;
+    if (start == last) test = 1;
+    while (1) {
+        if (test > 0) {
+            if (i == last && guard == 1) {
+                break;
+            }
+            if (i == last && guard == 0) {
+                guard = 1;
+            }
+        } else {
+	    if (i == last) break;
+        }
+        if (ack > seq_array[i]) {
+            start = get_si_next_new(start, seq_size);
+        } else if (ack == seq_array[i]) {
+            if (seq == ack_array[i]) {
+                if (start == end) {
+                    start = -1;
+                    end = -1;
+                } else {
+                    start = get_si_next_new(start, seq_size);
+                }
                 return i;
-        }
-    } else {
-        int mid = (start + range / 2) % SEQ_INDEX_MAX;
-        if (ack == seq_down[mid]) {
-            //bingo!
-            return mid;
-        } else if (ack > seq_down[mid]) {
-            //second half
-            return find_seq_by_ack(ack, get_si_next(mid), end);
+            }
+
+            if (start == end) {
+                start = -1;
+                end = -1;
+            } else {
+                start = get_si_next_new(start, seq_size);
+            }
+            return -1;
         } else {
-            return find_seq_by_ack(ack, start, get_si_previous(mid));
+            return -1;
+        }
+        i = get_si_next_new(i, seq_size);
+        if (start != i) {
+            printf("### ERROR in RTT analysis");
         }
     }
+
+    start = -1;
+    end = -1;
     return -1;
 }
 
+/*
 short TCPFlow::get_si_next(short c) {
     return (c + 1) % SEQ_INDEX_MAX;
 }
@@ -476,6 +460,7 @@ short TCPFlow::get_ai_next(short c) {
 short TCPFlow::get_ai_previous(short c) {
     return (c - 1 + ACK_INDEX_MAX) % ACK_INDEX_MAX;
 }
+*/
 
 void TCPFlow::print(u_short processed_flags) {
     double avg_bw = 0;

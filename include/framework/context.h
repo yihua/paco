@@ -16,7 +16,6 @@
 
 class Context {
 private:
-	string currFolder, lastFolder;
 	int packetNo;
 
 	vector<string> appNameMap;
@@ -53,6 +52,8 @@ private:
 	bool isProcessLine(string s);
 	bool parseScreenOn(string s);
 public:
+    string currFolder, lastFolder;
+    
     const static int NETWORK_TYPE_WIFI = 0;
     const static int NETWORK_TYPE_CELLULAR = 1;
 

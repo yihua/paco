@@ -10,6 +10,8 @@
 
 User::User() {
 	//cout << "user init" << endl;
+    currFolder = "";
+    lastFolder = "";
     start_time = -1.0;
     last_packet_time = 0;
     last_epkt_time = 0;
@@ -24,6 +26,8 @@ User::User() {
     last_flow_valid = false;
     last_payload = -1;
     energy_bin_start = 0.0;
+    conn_d_data_size = 0;
+    conn_u_data_size = 0;
 
     bw_bin_ul_start_time = -1.0;
     bw_bin_ul_end_time = -1.0;
@@ -61,6 +65,10 @@ User::User() {
 
     lastCycleStartTime = DEFAULT_CYCLE_START;
     //resetCycleStat(currentTime);
+}
+
+string User::getFolder() {
+    return (lastFolder + "\n" + currFolder);
 }
 
 void User::resetCycleStat(double currentTime) {

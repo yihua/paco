@@ -339,8 +339,8 @@ string Context::getCurrFolder() {
 }
 
 void Context::setFolder(string s) {
-	lastFolder = currFolder;
-	currFolder = s;
+	lastFolder.assign(currFolder);
+	currFolder.assign(s);
 }
 
 void Context::incrPacketNo() {

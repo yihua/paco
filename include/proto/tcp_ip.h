@@ -29,8 +29,8 @@ const double DUPACK_SLOWSTART_TIME = 0.1; //seconds
 
 const double BW_MAX_BITS_PER_SECOND = 30000000.0;
 
-const int SEQ_INDEX_MAX = 6;
-const int ACK_INDEX_MAX = SEQ_INDEX_MAX / 2; //1 ACK 2 Data PKTs
+//const int SEQ_INDEX_MAX = 1000;
+//const int ACK_INDEX_MAX = SEQ_INDEX_MAX / 2; //1 ACK 2 Data PKTs
 
 typedef struct {
     u_int src_ip;

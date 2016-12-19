@@ -39,6 +39,7 @@ T StringToNumber (const string &Text) {
 class FlowAbstract: public TrafficAbstract{
 	int BURST_THRESHOLD;
 	double TIME_BASE;
+    int flag_order;
 
 	uint64 packet_count;
 	uint64 no_ip_count;
