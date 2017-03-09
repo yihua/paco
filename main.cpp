@@ -2,8 +2,7 @@
 #include "paco.h"
 
 // Other option: "/z/uplink-bufferbloat"
-#define ROOT_FOLDER2 "/home/yhguo/user-study-imc16/"
-#define ROOT_FOLDER "/nfs/beirut1/userstudy/results/"
+#define ROOT_FOLDER "/nfs/rome2/david/paco/"
 
 using namespace std;
 
@@ -15,11 +14,11 @@ int main(int argc, char** argv) {
 	} else {
 		cout << "User ID: " << argv[1] << endl; 
 	}
-	string traceList(ROOT_FOLDER2 "PACO/pcapsort");
+	string traceList(ROOT_FOLDER "PACO/pcapsort");
 	ConfigParam param;
 	param.configTraceList(traceList);
 	param.configContextType(CONFIG_PARAM_TRACE_DEV);
-	param.configTraceType(CONFIG_PARAM_TRACE_DEV);
+	param.configTraceType(CONFIG_PARAM_TRACE_DEV_PCAP_MAPPING); //CONFIG_PARAM_TRACE_DEV_PCAP);
 	param.configMeasumentTask(CONFIG_PARAM_MEASUREMENT_TCPFLOW);
 	param.configCountCycle("1000");
 

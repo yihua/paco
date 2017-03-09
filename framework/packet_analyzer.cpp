@@ -42,6 +42,7 @@ void PacketAnalyzer::checkSystem() {
 }
 
 void PacketAnalyzer::config() {
+	cout << "Get trace list: " << mConfigParam.getTraceList() << endl;
 	ifstream trace_list(mConfigParam.getTraceList().c_str());
 	string s;
 	while (getline(trace_list, s)) {
@@ -51,7 +52,7 @@ void PacketAnalyzer::config() {
 	//measurement type
 	if (mConfigParam.getMeasumentTask().compare(CONFIG_PARAM_MEASUREMENT_TCPFLOW) == 0){
 	    FlowAbstract* fa=new FlowAbstract();
-	    fa->configTraceType(mConfigParam.getContextType());
+	    fa->configTraceType(mConfigParam.getTraceType());
 	    mTrafficAbstract.push_back((int*)fa);
 	}
 }
@@ -107,7 +108,11 @@ void PacketAnalyzer::run(char* idFilter) {
 	int trace_count = 0;
 	int c_cycle = mConfigParam.getCountCycle();
 	int thisID = 0;
+
+	cout << "Trace type: " << mConfigParam.getTraceType()
+		 << " Context type: " << mConfigParam.getContextType() << endl;
 	for (it = mTraceList.begin(); it != mTraceList.end(); it++) {
+		cout << "Pcap: " << *it << endl;
 		if (trace_count % c_cycle == 0) {
             checkTime = GetSecond() - startTime;
 			cout << trace_count << " files processed. Time: "
@@ -118,10 +123,13 @@ void PacketAnalyzer::run(char* idFilter) {
             cout << checkTime << "s" << endl;
 		}
 
-		if (getUserID(*it).compare(idFilter) != 0) {
-			trace_count++;
-			continue;
+		if (mConfigParam.isTraceType(CONFIG_PARAM_TRACE_DEV)) { // only user study have ID for now
+			if (getUserID(*it).compare(idFilter) != 0) {
+				trace_count++;
+				continue;
+			}
 		}
+			
 
 		// open pcap file successfully?
 		if ((trace_file = pcap_open_offline(it->c_str(), errbuf)) == NULL) {
@@ -155,6 +163,31 @@ void PacketAnalyzer::run(char* idFilter) {
 				thisID = 1;
 				//cout << *it << endl;
 			}
+		} else if (mConfigParam.isTraceType(CONFIG_PARAM_TRACE_DEV_PCAP_MAPPING)) {
+			tmp_folder = getFolder(*it);
+			mTraceCtx.setFolder(*it);
+			mTraceCtx.setPacketNo(0);
+			tmp_folder += "appname";
+			if (tmp_folder.compare(curr_folder) != 0) {
+				curr_folder = tmp_folder;
+				//cout << "Folder Name: " << curr_folder << endl;
+				mTraceCtx.clearAppNameMap();
+
+				ifstream appNameFile(tmp_folder.c_str());
+				while (getline(appNameFile, tmp_s)) {
+					mTraceCtx.addAppName(tmp_s);
+				}
+
+				mTraceCtx.updateFile(getFolder(*it));
+			}
+
+			// get user ID
+			mTraceCtx.setUserID("000");
+		} else {
+			// CONFIG_PARAM_TRACE_DEV_PCAP
+			mTraceCtx.setPacketNo(0);
+			mTraceCtx.setFolder("null");
+			mTraceCtx.setUserID("000");
 		}
 
 
@@ -164,12 +197,12 @@ void PacketAnalyzer::run(char* idFilter) {
             // cellular trace
 			mTraceCtx.setEtherLen(16);
             mTraceCtx.setNetworkType(Context::NETWORK_TYPE_CELLULAR);
-            //cout << "Cellular: " << *it << endl;
+            cout << "Cellular: " << *it << endl;
 		} else {
             // Wi-Fi trace
 			mTraceCtx.setEtherLen(14);
             mTraceCtx.setNetworkType(Context::NETWORK_TYPE_WIFI);
-            //cout << "Wi-Fi: " << *it << endl;
+            cout << "Wi-Fi: " << *it << endl;
             //cout << "WiFi Trace: " << *it << endl;
 			//if (mConfigParam.isTraceType(CONFIG_PARAM_TRACE_DEV)) {
 			//	trace_count++;
@@ -182,9 +215,12 @@ void PacketAnalyzer::run(char* idFilter) {
 		//cout << "Pcap trace Ethernet header length: " << mTraceCtx.getEtherLen() << endl;
 
 		/* read and dispatch packets until EOF is reached */
+		/*
 		if (mTraceCtx.getNetworkType() == Context::NETWORK_TYPE_CELLULAR && thisID == 1) {
 			pcap_loop(trace_file, 0, dispatcher_handler, (u_char *) this);
 		}
+		*/
+		pcap_loop(trace_file, 0, dispatcher_handler, (u_char *) this);
 		pcap_close(trace_file);
 		trace_count++;
 	}

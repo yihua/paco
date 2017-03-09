@@ -54,7 +54,7 @@ bool FlowAbstract::isClient(in_addr addr) {
     	else
     		return (((addr.s_addr & 0xFF000000) >> 24 == 192 && (addr.s_addr & 0xFF0000) >> 16 == 168) ||
         			((addr.s_addr & 0xFF000000) >> 24 == 67 && (addr.s_addr & 0xFF0000) >> 16 == 194) ||
-        			((addr.s_addr & 0xFF000000) >> 24 == 35 && (addr.s_addr & 0xFF0000) >> 16 == 0) ||
+        			((addr.s_addr & 0xFF000000) >> 24 == 35 && (addr.s_addr & 0xFF0000) >> 16 == 2) ||
                 	(addr.s_addr & 0xFF000000) >> 24 == 10) ? true : false;
 }
 
@@ -386,7 +386,9 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
     /*
 	* differentiate different users
 	*/
-	if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)) {
+	if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)
+		|| ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV_PCAP)
+		|| ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV_PCAP_MAPPING)) {
 		userp = &(users[traceCtx.getUserID()]);
 		userp->userID.assign(traceCtx.getUserID());
 	}
@@ -414,6 +416,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 	*/
 
 	if ((ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV) || 
+		ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV_PCAP) ||
+		ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV_PCAP_MAPPING) ||
 		ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_ATT_SPGW)) && 
 		*((u_short *)(pkt_data + ETHER_HDR_LEN - 2)) == ETHERTYPE_IP) {
 		/*
@@ -494,7 +498,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		*/
 		string appName("none");
 
-		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)) {
+		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)
+			|| ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV_PCAP_MAPPING)) {
 			//cout << "flow abtract dev" << endl;
 			if (appIndex < traceCtx.getAppNameMap().size()) {
 				appName.assign(traceCtx.getAppNameByIndex(appIndex));
@@ -530,7 +535,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
 		/*
 		 * differentiate different users
 		 */
-		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)) {
+		if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)
+			|| ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV_PCAP_MAPPING)) {
 			//userp = &(users[traceCtx.getUserID()]);
 			//userp->userID.assign(traceCtx.getUserID());
 		} else {
@@ -1394,7 +1400,8 @@ void FlowAbstract::runMeasureTask(Result* result, Context& traceCtx, const struc
                         }
 					}
 
-					if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)) {
+					if (ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV)
+						|| ConfigParam::isSameTraceType(traceType, CONFIG_PARAM_TRACE_DEV_PCAP_MAPPING)) {
 						userp->appTime[appName] = ts;
 					}
 

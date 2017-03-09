@@ -17,6 +17,8 @@
 #define CONFIG_PARAM_TRACE_DEV_SRV "2"
 #define CONFIG_PARAM_TRACE_ATT_SPGW "3"
 #define CONFIG_PARAM_TRACE_ATT_ENB "4"
+#define CONFIG_PARAM_TRACE_DEV_PCAP "5" // pcap only
+#define CONFIG_PARAM_TRACE_DEV_PCAP_MAPPING "6" // pcap with application mapping only
 
 #define CONFIG_PARAM_CONTEXT "context_type"
 #define CONFIG_PARAM_CONTEXT_NO "0"
